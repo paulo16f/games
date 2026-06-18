@@ -7,7 +7,7 @@ interface Entry {
   totalKills: number;
   totalPulls: number;
   weapon: Equipment | null;
-  armor: Equipment | null;
+  chest: Equipment | null;
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -48,7 +48,7 @@ export default function Leaderboard() {
             <span className="text-white font-bold text-sm">{e.totalKills} kills</span>
             <span className="flex gap-1 text-base">
               {e.weapon && <span title={e.weapon.name}>{e.weapon.emoji}</span>}
-              {e.armor && <span title={e.armor.name}>{e.armor.emoji}</span>}
+              {e.chest && <span title={e.chest.name}>{e.chest.emoji}</span>}
             </span>
           </div>
         ))}

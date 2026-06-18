@@ -10,7 +10,7 @@ export async function GET() {
       totalKills: state.totalKills,
       totalPulls: state.totalPulls,
       weapon: state.weapon,
-      armor: state.armor,
+      chest: state.chest,
       atk: state.atk,
       def: state.def,
     }))

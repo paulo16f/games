@@ -5,6 +5,7 @@ import BattleSection from "@/components/BattleSection";
 import GachaMachine from "@/components/GachaMachine";
 import EquipmentSlots from "@/components/EquipmentSlots";
 import Leaderboard from "@/components/Leaderboard";
+import Inventory from "@/components/Inventory";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { PlayerState } from "@/lib/store";
 import { PUMP_FUN_URL } from "@/lib/constants";
@@ -118,7 +119,11 @@ export default function Home() {
             {/* Equipment row */}
             <EquipmentSlots
               weapon={playerData?.weapon ?? null}
-              armor={playerData?.armor ?? null}
+              helmet={playerData?.helmet ?? null}
+              chest={playerData?.chest   ?? null}
+              gloves={playerData?.gloves ?? null}
+              boots={playerData?.boots   ?? null}
+              ring={playerData?.ring     ?? null}
               atk={playerData?.atk ?? 8}
               def={playerData?.def ?? 0}
             />
@@ -143,6 +148,12 @@ export default function Home() {
                 />
               </div>
             </div>
+
+            {/* Inventory */}
+            <Inventory
+              inventory={playerData?.inventory ?? []}
+              onPlayerDataUpdate={handlePlayerDataUpdate}
+            />
 
             {/* Leaderboard */}
             <Leaderboard />

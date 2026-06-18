@@ -60,7 +60,7 @@ export default function BattleSection({ onPlayerDataUpdate, tokenSymbol = "TOKEN
         state.totalKills === 0 &&
         state.totalPulls === 0 &&
         !state.weapon &&
-        !state.armor;
+        !state.chest;
       setInitialized(!isNew);
       setPlayerData(state);
       onPlayerDataUpdate(state);
@@ -122,13 +122,16 @@ export default function BattleSection({ onPlayerDataUpdate, tokenSymbol = "TOKEN
         const data = await sendAction(move);
         if (!data) return;
 
-        const { playerDamage, enemyDamage } = data.result as {
+        const { playerDamage, enemyDamage, dailyBonus } = data.result as {
           playerDamage: number;
           enemyDamage: number;
+          dailyBonus: number;
         };
 
         setPlayerData(data.playerData);
         onPlayerDataUpdate(data.playerData);
+
+        if (dailyBonus > 0) showToast(`🌅 Daily bonus! +${dailyBonus}🪙`);
 
         const moveLabel =
           move === "strike" ? "⚔️ Strike" :
@@ -152,7 +155,13 @@ export default function BattleSection({ onPlayerDataUpdate, tokenSymbol = "TOKEN
             setPlayerData(killData.playerData);
             onPlayerDataUpdate(killData.playerData);
             const earned = killData.result.tokensEarned as number;
-            addLog(`${isBoss ? "👑 Boss" : "Enemy"} slain! +${earned} 🪙`);
+            const streak = (killData.result.streakBonus as number) ?? 0;
+            const perfect = (killData.result.perfectBonus as number) ?? 0;
+            const bonuses = [
+              streak > 0 ? `🔥×${killData.result.killStreak} streak` : "",
+              perfect > 0 ? "⭐ perfect" : "",
+            ].filter(Boolean).join(", ");
+            addLog(`${isBoss ? "👑 Boss" : "Enemy"} slain! +${earned}🪙${bonuses ? ` (${bonuses})` : ""}`);
             if (isBoss) {
               const kills = killData.playerData.totalKills;
               const bossNum = Math.floor(kills / 5);

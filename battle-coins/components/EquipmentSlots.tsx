@@ -1,61 +1,80 @@
 "use client";
 import { Equipment } from "@/lib/store";
-import { GACHA_TIERS } from "@/lib/constants";
-
-interface SlotProps {
-  label: string;
-  item: Equipment | null;
-  placeholder: string;
-}
-
-function SlotCard({ label, item, placeholder }: SlotProps) {
-  const tier = item ? GACHA_TIERS.find((t) => t.id === item.tierId) : null;
-
-  if (!item) {
-    return (
-      <div className="flex-1 rounded-xl border-2 border-dashed border-white/15 flex flex-col items-center justify-center gap-1.5 p-3 min-h-[5.5rem] text-white/25">
-        <span className="text-2xl">{placeholder}</span>
-        <span className="text-xs">{label}</span>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={`flex-1 rounded-xl border-2 ${tier?.borderClass ?? "border-white/30"} bg-white/5 flex flex-col items-center gap-1 p-3`}
-    >
-      <span className="text-2xl">{item.emoji}</span>
-      <span className={`text-xs font-bold text-center leading-tight ${tier?.textClass ?? "text-white"}`}>
-        {item.name}
-      </span>
-      <span className="text-white/60 text-xs font-mono">
-        {item.atk > 0 ? `+${item.atk} ATK` : `+${item.def} DEF`}
-      </span>
-    </div>
-  );
-}
+import { GACHA_TIERS, SLOT_META, EquipmentSlot } from "@/lib/constants";
 
 interface Props {
   weapon: Equipment | null;
-  armor: Equipment | null;
+  helmet: Equipment | null;
+  chest:  Equipment | null;
+  gloves: Equipment | null;
+  boots:  Equipment | null;
+  ring:   Equipment | null;
   atk: number;
   def: number;
 }
 
-export default function EquipmentSlots({ weapon, armor, atk, def }: Props) {
+function statLine(item: Equipment): string {
+  if (item.atk > 0 && item.def > 0) return `+${item.atk} ATK / +${item.def} DEF`;
+  if (item.atk > 0) return `+${item.atk} ATK`;
+  return `+${item.def} DEF`;
+}
+
+function SlotCard({ slot, item }: { slot: EquipmentSlot; item: Equipment | null }) {
+  const meta = SLOT_META[slot];
+  const tier = item ? GACHA_TIERS.find((t) => t.id === item.tierId) : null;
+
+  return (
+    <div
+      className={`rounded-xl border p-2 flex flex-col items-center gap-1 min-h-[88px] ${
+        tier
+          ? `${tier.borderClass} bg-white/5`
+          : "border-dashed border-white/15 bg-white/[0.02]"
+      }`}
+    >
+      <div className="text-xs text-white/40 font-medium uppercase tracking-wider leading-none">
+        {meta.label}
+      </div>
+      {item ? (
+        <>
+          <div className="text-xl leading-none">{item.emoji}</div>
+          <div className={`text-xs font-semibold text-center leading-tight ${tier?.textClass ?? "text-white"}`}>
+            {item.name}
+          </div>
+          <div className="text-xs text-white/40">{statLine(item)}</div>
+        </>
+      ) : (
+        <div className="text-2xl text-white/15 mt-0.5">{meta.placeholder}</div>
+      )}
+    </div>
+  );
+}
+
+const SLOT_ROWS: [EquipmentSlot, EquipmentSlot, EquipmentSlot][] = [
+  ["weapon", "helmet", "chest"],
+  ["gloves", "boots",  "ring"],
+];
+
+export default function EquipmentSlots({ weapon, helmet, chest, gloves, boots, ring, atk, def }: Props) {
+  const slotMap: Record<EquipmentSlot, Equipment | null> = {
+    weapon, helmet, chest, gloves, boots, ring,
+  };
+
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-white/70 text-xs font-semibold uppercase tracking-wider">Equipment</h3>
-        <div className="flex gap-3 text-xs font-mono">
-          <span className="text-orange-400">⚔️ {atk} ATK</span>
-          <span className="text-blue-400">🛡️ {def} DEF</span>
+        <span className="text-white/60 text-xs font-semibold uppercase tracking-wider">Equipment</span>
+        <div className="flex gap-3 text-sm">
+          <span className="text-orange-400 font-bold">⚔️ {atk} ATK</span>
+          <span className="text-blue-400 font-bold">🛡️ {def} DEF</span>
         </div>
       </div>
-      <div className="flex gap-3">
-        <SlotCard label="Weapon" item={weapon} placeholder="🗡️" />
-        <SlotCard label="Armor" item={armor} placeholder="🧥" />
-      </div>
+      {SLOT_ROWS.map((row, ri) => (
+        <div key={ri} className="grid grid-cols-3 gap-2">
+          {row.map((slot) => (
+            <SlotCard key={slot} slot={slot} item={slotMap[slot]} />
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

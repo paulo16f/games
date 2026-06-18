@@ -40,6 +40,7 @@ export default function GachaMachine({
   const [pulledItem, setPulledItem] = useState<Equipment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pullHistory, setPullHistory] = useState<PullHistory[]>([]);
+  const [autoSoldMsg, setAutoSoldMsg] = useState<string | null>(null);
 
   const isGated = realTokenBalance < PUMP_GATE_AMOUNT;
   const canPull = publicKey && tokenBalance >= 1 && state === "idle" && !isGated;
@@ -61,22 +62,26 @@ export default function GachaMachine({
       }
       const data = await res.json() as {
         playerData: PlayerState;
-        result: { tierId: number; tierName: string; rewardTokens: number; item: Equipment | null };
+        result: { tierId: number; tierName: string; rewardTokens: number; item: Equipment | null; autoSold: boolean; autoSellTokens: number };
       };
 
       const tier = GACHA_TIERS.find((t) => t.id === data.result.tierId) ?? GACHA_TIERS[0];
       const item = data.result.item ?? null;
+      const autoSold = data.result.autoSold ?? false;
+      const autoSellTokens = data.result.autoSellTokens ?? 0;
 
       await new Promise((r) => setTimeout(r, 900));
       setResult(tier);
-      setPulledItem(item);
+      setPulledItem(autoSold ? null : item);
       setState("revealed");
+      if (autoSold) setAutoSoldMsg(`Inventory full! Auto-sold +${autoSellTokens}🪙`);
       setPullHistory((prev) => [{ tier, item }, ...prev].slice(0, 10));
       onPullComplete(data.playerData);
 
       setTimeout(() => {
         setState("idle");
         setPulledItem(null);
+        setAutoSoldMsg(null);
       }, 5000);
     } catch (e) {
       console.error(e);
@@ -117,17 +122,22 @@ export default function GachaMachine({
         {state === "revealed" && result && (
           <div className={`flex flex-col items-center gap-3 ${isUltra ? "gacha-ultra-shake" : ""}`}>
             <GachaCard tier={result} isRevealed={true} />
-            {pulledItem && (
+            {autoSoldMsg ? (
+              <div className="text-center text-yellow-400 text-xs font-semibold px-2">{autoSoldMsg}</div>
+            ) : pulledItem ? (
               <div className="text-center space-y-0.5">
                 <div className="text-2xl">{pulledItem.emoji}</div>
                 <div className={`text-sm font-bold ${GACHA_TIERS.find(t => t.id === pulledItem.tierId)?.textClass ?? "text-white"}`}>
                   {pulledItem.name}
                 </div>
                 <div className="text-xs text-white/50">
-                  {pulledItem.atk > 0 ? `+${pulledItem.atk} ATK` : `+${pulledItem.def} DEF`} — Equipped!
+                  {pulledItem.atk > 0 && pulledItem.def > 0
+                    ? `+${pulledItem.atk} ATK / +${pulledItem.def} DEF`
+                    : pulledItem.atk > 0 ? `+${pulledItem.atk} ATK` : `+${pulledItem.def} DEF`
+                  } → Added to inventory
                 </div>
               </div>
-            )}
+            ) : null}
             {isShareWorthy && (
               <a
                 href={buildTweetUrl(result, tokenSymbol)}
