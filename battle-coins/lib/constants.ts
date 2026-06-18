@@ -97,6 +97,10 @@ export const GACHA_TIERS = [
 
 export type GachaTier = (typeof GACHA_TIERS)[number];
 
+export const PUMP_TOKEN_MINT = "9GCoenzG61wmFuWA2E2TdaHqq1LsdkPLHYE5drPxpump";
+export const PUMP_FUN_URL = "https://pump.fun/coin/9GCoenzG61wmFuWA2E2TdaHqq1LsdkPLHYE5drPxpump";
+export const PUMP_GATE_AMOUNT = 1; // minimum real tokens to unlock gacha pulls
+
 export const ENEMIES = [
   { name: "Goblin", emoji: "👺", baseHp: 40 },
   { name: "Skeleton", emoji: "💀", baseHp: 50 },

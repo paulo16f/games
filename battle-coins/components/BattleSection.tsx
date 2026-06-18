@@ -1,19 +1,32 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { ENEMIES } from "@/lib/constants";
+import { ENEMIES, PUMP_FUN_URL } from "@/lib/constants";
 import { PlayerState } from "@/lib/store";
 import PlayerStats from "./PlayerStats";
 
+interface ShareState {
+  bossNumber: number;
+  totalKills: number;
+  tweetUrl: string;
+}
+
+function buildBossTweet(bossNumber: number, totalKills: number, tokenSymbol: string): string {
+  const text = `👑 Defeated Boss #${bossNumber} on Battle Coins Gacha! ${totalKills} total kills — hold $${tokenSymbol} to play 💀 #pumpfun #solana`;
+  const url = typeof window !== "undefined" ? window.location.origin : "";
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+}
+
 interface Props {
   onPlayerDataUpdate: (data: PlayerState) => void;
+  tokenSymbol?: string;
 }
 
 function randomEnemy() {
   return ENEMIES[Math.floor(Math.random() * ENEMIES.length)];
 }
 
-export default function BattleSection({ onPlayerDataUpdate }: Props) {
+export default function BattleSection({ onPlayerDataUpdate, tokenSymbol = "TOKEN" }: Props) {
   const { publicKey } = useWallet();
 
   const [enemy, setEnemy] = useState(randomEnemy);
@@ -27,6 +40,7 @@ export default function BattleSection({ onPlayerDataUpdate }: Props) {
   const [combatLog, setCombatLog] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [enemyAnimating, setEnemyAnimating] = useState(false);
+  const [bossShare, setBossShare] = useState<ShareState | null>(null);
 
   const addLog = (msg: string) =>
     setCombatLog((prev) => [msg, ...prev].slice(0, 4));
@@ -139,6 +153,16 @@ export default function BattleSection({ onPlayerDataUpdate }: Props) {
             onPlayerDataUpdate(killData.playerData);
             const earned = killData.result.tokensEarned as number;
             addLog(`${isBoss ? "👑 Boss" : "Enemy"} slain! +${earned} 🪙`);
+            if (isBoss) {
+              const kills = killData.playerData.totalKills;
+              const bossNum = Math.floor(kills / 5);
+              setBossShare({
+                bossNumber: bossNum,
+                totalKills: kills,
+                tweetUrl: buildBossTweet(bossNum, kills, tokenSymbol),
+              });
+              setTimeout(() => setBossShare(null), 10_000);
+            }
             spawnNext(killData.playerData.totalKills);
           }
         }
@@ -284,6 +308,32 @@ export default function BattleSection({ onPlayerDataUpdate }: Props) {
                 {line}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {bossShare && (
+        <div className="flex flex-col items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl animate-fade-in-down">
+          <div className="text-yellow-300 font-bold text-sm">
+            👑 Boss #{bossShare.bossNumber} defeated! {bossShare.totalKills} kills total
+          </div>
+          <div className="flex gap-2">
+            <a
+              href={bossShare.tweetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1DA1F2]/20 border border-[#1DA1F2]/40 text-[#1DA1F2] text-xs font-bold hover:bg-[#1DA1F2]/30 transition-all"
+            >
+              𝕏 Flex on X
+            </a>
+            <a
+              href={PUMP_FUN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-bold hover:bg-green-500/20 transition-all"
+            >
+              🟢 Pump.fun
+            </a>
           </div>
         </div>
       )}

@@ -12,21 +12,21 @@ import {
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
-const DEVNET_RPC =
+const RPC =
   process.env.NEXT_PUBLIC_RPC_URL ||
-  "https://api.devnet.solana.com";
+  "https://api.mainnet-beta.solana.com";
 
 export default function Providers({ children }: { children: ReactNode }) {
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
-      new SolflareWalletAdapter({ network: WalletAdapterNetwork.Devnet }),
+      new SolflareWalletAdapter({ network: WalletAdapterNetwork.Mainnet }),
     ],
     []
   );
 
   return (
-    <ConnectionProvider endpoint={DEVNET_RPC}>
+    <ConnectionProvider endpoint={RPC}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>

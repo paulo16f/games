@@ -1,22 +1,46 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import WalletButton from "@/components/WalletButton";
 import BattleSection from "@/components/BattleSection";
 import GachaMachine from "@/components/GachaMachine";
 import EquipmentSlots from "@/components/EquipmentSlots";
+import Leaderboard from "@/components/Leaderboard";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { PlayerState } from "@/lib/store";
+import { PUMP_FUN_URL } from "@/lib/constants";
 
 export default function Home() {
   const { publicKey } = useWallet();
   const [playerData, setPlayerData] = useState<PlayerState | null>(null);
+  const [realTokenBalance, setRealTokenBalance] = useState(0);
+  const [tokenSymbol, setTokenSymbol] = useState("TOKEN");
 
   const handlePlayerDataUpdate = useCallback((data: PlayerState) => {
     setPlayerData(data);
   }, []);
 
+  // Fetch real on-chain token balance when wallet connects
+  useEffect(() => {
+    if (!publicKey) { setRealTokenBalance(0); return; }
+    const wallet = publicKey.toString();
+    fetch(`/api/token/balance?wallet=${wallet}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setRealTokenBalance(d.balance ?? 0);
+        if (d.symbol) setTokenSymbol(d.symbol);
+      })
+      .catch(() => {});
+  }, [publicKey]);
+
   const tokenBalance = playerData?.tokens ?? 0;
   const totalPulls = playerData?.totalPulls ?? 0;
+
+  const fmtBalance = (n: number) =>
+    n >= 1_000_000
+      ? `${(n / 1_000_000).toFixed(1)}M`
+      : n >= 1_000
+      ? `${(n / 1_000).toFixed(1)}K`
+      : n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
   return (
     <div className="relative min-h-screen z-10">
@@ -29,13 +53,28 @@ export default function Home() {
             <p className="text-purple-400 text-xs font-medium">Gacha Edition</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {publicKey && (
-            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2">
-              <span className="text-yellow-400 text-lg">🪙</span>
-              <span className="text-white font-bold text-lg">{tokenBalance}</span>
-              <span className="text-gray-400 text-sm">BC</span>
-            </div>
+            <>
+              {/* Real token balance — links to pump.fun */}
+              <a
+                href={PUMP_FUN_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 bg-green-900/40 border border-green-500/30 rounded-xl px-3 py-2 hover:bg-green-900/60 transition-all"
+                title={`${realTokenBalance.toLocaleString()} $${tokenSymbol}`}
+              >
+                <span className="text-green-400 text-sm">🟢</span>
+                <span className="text-green-300 font-bold text-sm">{fmtBalance(realTokenBalance)}</span>
+                <span className="text-green-500 text-xs">${tokenSymbol}</span>
+              </a>
+              {/* In-game BC */}
+              <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+                <span className="text-yellow-400 text-sm">🪙</span>
+                <span className="text-white font-bold text-sm">{tokenBalance}</span>
+                <span className="text-gray-400 text-xs">BC</span>
+              </div>
+            </>
           )}
           <WalletButton />
         </div>
@@ -62,11 +101,21 @@ export default function Home() {
                 )
               )}
             </div>
-            <WalletButton />
+            <div className="flex flex-col items-center gap-3">
+              <WalletButton />
+              <a
+                href={PUMP_FUN_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-green-400 text-sm hover:underline"
+              >
+                🟢 Get ${tokenSymbol} on Pump.fun to unlock gacha pulls →
+              </a>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Equipment row — always visible once connected */}
+            {/* Equipment row */}
             <EquipmentSlots
               weapon={playerData?.weapon ?? null}
               armor={playerData?.armor ?? null}
@@ -78,23 +127,34 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
                 <h2 className="text-white font-black text-xl flex items-center gap-2">⚔️ Battle</h2>
-                <BattleSection onPlayerDataUpdate={handlePlayerDataUpdate} />
+                <BattleSection
+                  onPlayerDataUpdate={handlePlayerDataUpdate}
+                  tokenSymbol={tokenSymbol}
+                />
               </div>
 
               <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
                 <GachaMachine
                   tokenBalance={tokenBalance}
+                  realTokenBalance={realTokenBalance}
+                  tokenSymbol={tokenSymbol}
                   onPullComplete={handlePlayerDataUpdate}
                   totalPulls={totalPulls}
                 />
               </div>
             </div>
+
+            {/* Leaderboard */}
+            <Leaderboard />
           </div>
         )}
       </main>
 
       <footer className="text-center py-4 text-white/20 text-xs">
-        ⚡ Running on Solana Devnet
+        ⚡ Running on Solana Mainnet · Powered by{" "}
+        <a href={PUMP_FUN_URL} target="_blank" rel="noopener noreferrer" className="text-green-500/50 hover:text-green-400 transition-colors">
+          ${tokenSymbol}
+        </a>
       </footer>
     </div>
   );

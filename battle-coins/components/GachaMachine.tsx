@@ -2,11 +2,13 @@
 import { useState, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import GachaCard from "./GachaCard";
-import { GACHA_TIERS, GachaTier } from "@/lib/constants";
+import { GACHA_TIERS, GachaTier, PUMP_FUN_URL, PUMP_GATE_AMOUNT } from "@/lib/constants";
 import { Equipment, PlayerState } from "@/lib/store";
 
 interface Props {
   tokenBalance: number;
+  realTokenBalance: number;
+  tokenSymbol: string;
   onPullComplete: (data: PlayerState) => void;
   totalPulls: number;
 }
@@ -18,7 +20,20 @@ interface PullHistory {
   item: Equipment | null;
 }
 
-export default function GachaMachine({ tokenBalance, onPullComplete, totalPulls }: Props) {
+function buildTweetUrl(tier: GachaTier, tokenSymbol: string): string {
+  const medal = tier.id === 5 ? "🌈 ULTRA" : "⭐ LEGENDARY";
+  const text = `I just pulled ${medal} on Battle Coins Gacha! 🎮 Hold $${tokenSymbol} to play 👇 #pumpfun #solana`;
+  const url = typeof window !== "undefined" ? window.location.origin : "";
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+}
+
+export default function GachaMachine({
+  tokenBalance,
+  realTokenBalance,
+  tokenSymbol,
+  onPullComplete,
+  totalPulls,
+}: Props) {
   const { publicKey } = useWallet();
   const [state, setState] = useState<MachineState>("idle");
   const [result, setResult] = useState<GachaTier | null>(null);
@@ -26,7 +41,8 @@ export default function GachaMachine({ tokenBalance, onPullComplete, totalPulls 
   const [error, setError] = useState<string | null>(null);
   const [pullHistory, setPullHistory] = useState<PullHistory[]>([]);
 
-  const canPull = publicKey && tokenBalance >= 1 && state === "idle";
+  const isGated = realTokenBalance < PUMP_GATE_AMOUNT;
+  const canPull = publicKey && tokenBalance >= 1 && state === "idle" && !isGated;
 
   const pull = useCallback(async () => {
     if (!publicKey || !canPull) return;
@@ -55,14 +71,13 @@ export default function GachaMachine({ tokenBalance, onPullComplete, totalPulls 
       setResult(tier);
       setPulledItem(item);
       setState("revealed");
-
       setPullHistory((prev) => [{ tier, item }, ...prev].slice(0, 10));
       onPullComplete(data.playerData);
 
       setTimeout(() => {
         setState("idle");
         setPulledItem(null);
-      }, 4000);
+      }, 5000);
     } catch (e) {
       console.error(e);
       setError(String(e));
@@ -71,6 +86,7 @@ export default function GachaMachine({ tokenBalance, onPullComplete, totalPulls 
   }, [publicKey, canPull, onPullComplete]);
 
   const isUltra = result?.id === 5;
+  const isShareWorthy = result && (result.id === 4 || result.id === 5);
 
   return (
     <div className="space-y-6">
@@ -88,7 +104,7 @@ export default function GachaMachine({ tokenBalance, onPullComplete, totalPulls 
         {state === "idle" && (
           <div className="w-48 h-64 rounded-2xl border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-3 text-white/30">
             <div className="text-5xl">🎴</div>
-            <div className="text-sm">Pull to reveal</div>
+            <div className="text-sm">{isGated ? `Hold $${tokenSymbol} to pull` : "Pull to reveal"}</div>
           </div>
         )}
 
@@ -99,10 +115,10 @@ export default function GachaMachine({ tokenBalance, onPullComplete, totalPulls 
         )}
 
         {state === "revealed" && result && (
-          <div className={isUltra ? "gacha-ultra-shake" : ""}>
+          <div className={`flex flex-col items-center gap-3 ${isUltra ? "gacha-ultra-shake" : ""}`}>
             <GachaCard tier={result} isRevealed={true} />
             {pulledItem && (
-              <div className="mt-3 text-center space-y-0.5">
+              <div className="text-center space-y-0.5">
                 <div className="text-2xl">{pulledItem.emoji}</div>
                 <div className={`text-sm font-bold ${GACHA_TIERS.find(t => t.id === pulledItem.tierId)?.textClass ?? "text-white"}`}>
                   {pulledItem.name}
@@ -112,27 +128,51 @@ export default function GachaMachine({ tokenBalance, onPullComplete, totalPulls 
                 </div>
               </div>
             )}
+            {isShareWorthy && (
+              <a
+                href={buildTweetUrl(result, tokenSymbol)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1DA1F2]/20 border border-[#1DA1F2]/40 text-[#1DA1F2] text-sm font-bold hover:bg-[#1DA1F2]/30 transition-all"
+              >
+                𝕏 Share on X
+              </a>
+            )}
           </div>
         )}
       </div>
 
+      {/* Token gate notice */}
+      {publicKey && isGated && (
+        <a
+          href={PUMP_FUN_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full py-4 rounded-2xl text-center font-black text-lg bg-gradient-to-r from-green-700 to-emerald-600 text-white hover:opacity-90 transition-all shadow-lg shadow-green-900/40"
+        >
+          🛒 Buy ${tokenSymbol} on Pump.fun to unlock pulls
+        </a>
+      )}
+
       {/* Pull button */}
-      <button
-        onClick={pull}
-        disabled={!canPull}
-        className={`
-          w-full py-4 rounded-2xl font-black text-lg tracking-wider transition-all
-          ${canPull
-            ? "bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-purple-900/50"
-            : "bg-white/5 text-white/30 cursor-not-allowed"}
-        `}
-      >
-        {state === "rolling"  ? "✨ Revealing…"    :
-         state === "revealed" ? "⏳ Resetting…"    :
-         !publicKey           ? "Connect Wallet"   :
-         tokenBalance < 1     ? "Need 1 🪙 to Pull" :
-         "🎴 PULL (costs 1 🪙)"}
-      </button>
+      {!isGated && (
+        <button
+          onClick={pull}
+          disabled={!canPull}
+          className={`
+            w-full py-4 rounded-2xl font-black text-lg tracking-wider transition-all
+            ${canPull
+              ? "bg-gradient-to-r from-violet-600 via-purple-600 to-blue-600 text-white hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-purple-900/50"
+              : "bg-white/5 text-white/30 cursor-not-allowed"}
+          `}
+        >
+          {state === "rolling"  ? "✨ Revealing…"    :
+           state === "revealed" ? "⏳ Resetting…"    :
+           !publicKey           ? "Connect Wallet"   :
+           tokenBalance < 1     ? "Need 1 🪙 to Pull" :
+           "🎴 PULL (costs 1 🪙)"}
+        </button>
+      )}
 
       {error && <p className="text-center text-red-400 text-sm">{error}</p>}
 
