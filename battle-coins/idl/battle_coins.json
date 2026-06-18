@@ -1,0 +1,86 @@
+{
+  "version": "0.1.0",
+  "name": "battle_coins",
+  "instructions": [
+    {
+      "name": "createMint",
+      "accounts": [
+        { "name": "admin", "isMut": true, "isSigner": true },
+        { "name": "rewardTokenMint", "isMut": true, "isSigner": false },
+        { "name": "metadataAccount", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "tokenMetadataProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false },
+        { "name": "rent", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "uri", "type": "string" },
+        { "name": "name", "type": "string" },
+        { "name": "symbol", "type": "string" }
+      ]
+    },
+    {
+      "name": "initPlayer",
+      "accounts": [
+        { "name": "player", "isMut": true, "isSigner": true },
+        { "name": "playerData", "isMut": true, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "killEnemy",
+      "accounts": [
+        { "name": "player", "isMut": true, "isSigner": true },
+        { "name": "playerData", "isMut": true, "isSigner": false },
+        { "name": "playerTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "rewardTokenMint", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "heal",
+      "accounts": [
+        { "name": "player", "isMut": true, "isSigner": true },
+        { "name": "playerData", "isMut": true, "isSigner": false },
+        { "name": "playerTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "rewardTokenMint", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "PlayerData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "health", "type": "u8" },
+          { "name": "totalKills", "type": "u32" },
+          { "name": "totalPulls", "type": "u32" },
+          { "name": "lastPullTier", "type": "u8" }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NotEnoughHealth",
+      "msg": "Not enough health"
+    },
+    {
+      "code": 6001,
+      "name": "NotEnoughTokens",
+      "msg": "Not enough tokens to pull"
+    }
+  ],
+  "metadata": {
+    "address": "6Rrp7e4J5pxNCQDddWivSbVzEoe2gv4VsrrTLCKKM2GL"
+  }
+}
