@@ -7,6 +7,8 @@ interface Props {
   maxHealth?: number;
   atk?: number;
   def?: number;
+  status?: "none" | "burn" | "stun";
+  statusDuration?: number;
 }
 
 export default function PlayerStats({
@@ -16,21 +18,36 @@ export default function PlayerStats({
   maxHealth = 100,
   atk = 8,
   def = 0,
+  status = "none",
+  statusDuration = 0,
 }: Props) {
   const hpPct = Math.max(0, Math.min(100, (health / maxHealth) * 100));
   const hpColor =
     hpPct > 60 ? "bg-green-500" :
     hpPct > 30 ? "bg-yellow-500" :
-    "bg-red-500";
+                 "bg-red-500";
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
       <h3 className="text-white/70 text-xs font-semibold uppercase tracking-wider">Player Stats</h3>
 
       <div className="space-y-1">
-        <div className="flex justify-between text-sm">
+        <div className="flex justify-between items-center text-sm">
           <span className="text-gray-400">HP</span>
-          <span className="text-white font-mono">{health}/{maxHealth}</span>
+          <div className="flex items-center gap-2">
+            {status !== "none" && statusDuration > 0 && (
+              <span
+                className="animate-status-pulse text-xs font-bold px-2 py-0.5 rounded-full"
+                style={status === "burn"
+                  ? { background: "rgba(249,115,22,0.2)", color: "#f97316", border: "1px solid rgba(249,115,22,0.5)" }
+                  : { background: "rgba(167,139,250,0.2)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.5)" }
+                }
+              >
+                {status === "burn" ? `🔥 Burn ×${statusDuration}` : `💫 Stun ×${statusDuration}`}
+              </span>
+            )}
+            <span className="text-white font-mono">{health}/{maxHealth}</span>
+          </div>
         </div>
         <div className="h-3 bg-white/10 rounded-full overflow-hidden">
           <div

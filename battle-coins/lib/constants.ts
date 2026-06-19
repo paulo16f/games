@@ -112,7 +112,7 @@ export const GACHA_TIERS = [
   },
   {
     id: 3,
-    name: "Super Rare",
+    name: "Epic",
     probability: 10.0,
     rollMax: 950,
     rewardTokens: 3,
@@ -138,7 +138,7 @@ export const GACHA_TIERS = [
   },
   {
     id: 5,
-    name: "ULTRA",
+    name: "Mythic",
     probability: 0.1,
     rollMax: 1000,
     rewardTokens: 100,
@@ -161,15 +161,84 @@ export const PUMP_GATE_AMOUNT = 1;
 
 // ─── Enemies ─────────────────────────────────────────────────────────────────
 
-export const ENEMIES = [
-  { name: "Goblin",   emoji: "👺", baseHp: 40  },
-  { name: "Skeleton", emoji: "💀", baseHp: 50  },
-  { name: "Orc",      emoji: "👹", baseHp: 70  },
-  { name: "Dragon",   emoji: "🐉", baseHp: 100 },
-  { name: "Slime",    emoji: "🟩", baseHp: 20  },
-  { name: "Vampire",  emoji: "🧛", baseHp: 60  },
-  { name: "Witch",    emoji: "🧙", baseHp: 55  },
-  { name: "Ghost",    emoji: "👻", baseHp: 35  },
-  { name: "Demon",    emoji: "😈", baseHp: 90  },
-  { name: "Zombie",   emoji: "🧟", baseHp: 45  },
+export type EnemyElement = "fire" | "ice" | "dark" | "light" | "physical";
+export type StatusEffect  = "burn" | "stun";
+
+export interface EnemyEntry {
+  name: string;
+  emoji: string;
+  baseHp: number;
+  element: EnemyElement;
+  statusApplied: StatusEffect | null;
+  specialChance: number;
+}
+
+export const ENEMIES: EnemyEntry[] = [
+  { name: "Goblin",   emoji: "👺", baseHp: 40,  element: "physical", statusApplied: null,   specialChance: 0.15 },
+  { name: "Skeleton", emoji: "💀", baseHp: 50,  element: "dark",     statusApplied: "stun", specialChance: 0.20 },
+  { name: "Orc",      emoji: "👹", baseHp: 70,  element: "physical", statusApplied: null,   specialChance: 0.25 },
+  { name: "Dragon",   emoji: "🐉", baseHp: 100, element: "fire",     statusApplied: "burn", specialChance: 0.30 },
+  { name: "Slime",    emoji: "🟩", baseHp: 20,  element: "ice",      statusApplied: null,   specialChance: 0.10 },
+  { name: "Vampire",  emoji: "🧛", baseHp: 60,  element: "dark",     statusApplied: "stun", specialChance: 0.25 },
+  { name: "Witch",    emoji: "🧙", baseHp: 55,  element: "fire",     statusApplied: "burn", specialChance: 0.20 },
+  { name: "Ghost",    emoji: "👻", baseHp: 35,  element: "dark",     statusApplied: "stun", specialChance: 0.20 },
+  { name: "Demon",    emoji: "😈", baseHp: 90,  element: "dark",     statusApplied: "burn", specialChance: 0.30 },
+  { name: "Zombie",   emoji: "🧟", baseHp: 45,  element: "physical", statusApplied: "burn", specialChance: 0.15 },
+];
+
+export const ELEMENT_META: Record<EnemyElement, { emoji: string; weakTo: "strike" | "heavy" | "dodge"; label: string; color: string }> = {
+  fire:     { emoji: "🔥", weakTo: "heavy",  label: "Fire",     color: "#f97316" },
+  ice:      { emoji: "❄️", weakTo: "strike", label: "Ice",      color: "#38bdf8" },
+  dark:     { emoji: "🌑", weakTo: "dodge",  label: "Dark",     color: "#a78bfa" },
+  light:    { emoji: "✨", weakTo: "heavy",  label: "Light",    color: "#fbbf24" },
+  physical: { emoji: "💪", weakTo: "strike", label: "Physical", color: "#94a3b8" },
+};
+
+// ─── Fighter system ───────────────────────────────────────────────────────────
+
+export const STAR_MULTIPLIERS = [1.0, 1.35, 1.8, 2.5, 3.5] as const;
+
+export const FIGHTER_POOL: Record<number, { name: string; emoji: string; element: EnemyElement; basePower: number }[]> = {
+  1: [
+    { name: "Goblin",   emoji: "👺", element: "physical", basePower: 100 },
+    { name: "Slime",    emoji: "🫧", element: "ice",      basePower: 90  },
+    { name: "Zombie",   emoji: "🧟", element: "physical", basePower: 110 },
+  ],
+  2: [
+    { name: "Orc",      emoji: "👹", element: "physical", basePower: 220 },
+    { name: "Skeleton", emoji: "💀", element: "dark",     basePower: 200 },
+    { name: "Witch",    emoji: "🧙", element: "fire",     basePower: 240 },
+  ],
+  3: [
+    { name: "Ghost",    emoji: "👻", element: "dark",     basePower: 500 },
+    { name: "Vampire",  emoji: "🧛", element: "dark",     basePower: 550 },
+    { name: "Harpy",    emoji: "🦅", element: "light",    basePower: 480 },
+  ],
+  4: [
+    { name: "Dragon",   emoji: "🐉", element: "fire",     basePower: 1200 },
+    { name: "Phoenix",  emoji: "🔥", element: "fire",     basePower: 1100 },
+    { name: "Titan",    emoji: "⚡", element: "light",    basePower: 1300 },
+  ],
+  5: [
+    { name: "God Dragon",     emoji: "🌈", element: "fire",  basePower: 3000 },
+    { name: "Chaos Lord",     emoji: "🌑", element: "dark",  basePower: 3200 },
+    { name: "Divine Phoenix", emoji: "✨", element: "light", basePower: 2800 },
+  ],
+};
+
+export interface NpcFighter {
+  id: string; name: string; emoji: string; element: string;
+  tierId: number; stars: number; basePower: number;
+}
+
+export interface NpcOpponent {
+  wallet: string; arenaRating: number; fighter: NpcFighter;
+}
+
+export const NPC_OPPONENTS: NpcOpponent[] = [
+  { wallet: "NPC:ShadowKnight", arenaRating: 1200, fighter: { id: "npc-1", name: "Vampire",  emoji: "🧛", element: "dark",     tierId: 3, stars: 4, basePower: 550  } },
+  { wallet: "NPC:FlameWarden",  arenaRating: 800,  fighter: { id: "npc-2", name: "Dragon",   emoji: "🐉", element: "fire",     tierId: 4, stars: 2, basePower: 1200 } },
+  { wallet: "NPC:IceArcher",    arenaRating: 400,  fighter: { id: "npc-3", name: "Ghost",    emoji: "👻", element: "dark",     tierId: 3, stars: 1, basePower: 500  } },
+  { wallet: "NPC:Apprentice",   arenaRating: 150,  fighter: { id: "npc-4", name: "Orc",      emoji: "👹", element: "physical", tierId: 2, stars: 2, basePower: 220  } },
+  { wallet: "NPC:NewPlayer",    arenaRating: 50,   fighter: { id: "npc-5", name: "Goblin",   emoji: "👺", element: "physical", tierId: 1, stars: 3, basePower: 100  } },
 ];

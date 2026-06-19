@@ -13,6 +13,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "wallet required" }, { status: 400 });
   }
 
+  const mock = process.env.MOCK_TOKEN_BALANCE;
+  if (mock !== undefined) {
+    const balance = Number(mock);
+    return NextResponse.json({ balance, rawBalance: balance * 1e6, decimals: 6, symbol: SYMBOL });
+  }
+
   try {
     const connection = new Connection(RPC, "confirmed");
     const pubkey = new PublicKey(wallet);
