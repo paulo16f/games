@@ -1,31 +1,39 @@
 import { NextResponse } from "next/server";
-import { store } from "@/lib/store";
-import { STAR_MULTIPLIERS } from "@/lib/constants";
+import { settleAutoJump } from "@/lib/idle-engine";
+import { listPlayers, savePlayer } from "@/lib/repository";
+import { publicWallet } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-function effectivePower(f: { basePower: number; stars: number }): number {
-  return f.basePower * STAR_MULTIPLIERS[Math.min(f.stars - 1, 4)];
-}
-
 export async function GET() {
-  const entries = [...store.entries()]
-    .filter(([, state]) => state.arenaRating !== undefined)
-    .map(([wallet, state]) => {
-      const topFighter = state.fighters.length
-        ? state.fighters.reduce((best, f) =>
-            effectivePower(f) > effectivePower(best) ? f : best)
-        : null;
+  const players = (await listPlayers()).filter((state) => state.initialized);
+  await Promise.all(players.map(async (state) => {
+    await settleAutoJump(state);
+    await savePlayer(state);
+  }));
+  const entries = players
+    .map((state) => {
+      const activeFrogs = state.toads.filter(t => t.active).length;
+      const topToad = [...state.toads].sort((a, b) => b.level - a.level)[0] ?? null;
       return {
-        wallet,
-        arenaRating: state.arenaRating ?? 100,
-        topFighter,
-        totalKills: state.totalKills,
-        totalPulls: state.totalPulls,
+        wallet: publicWallet(state.wallet),
+        dailyJumpScore: state.dailyJumpScore,
+        seasonJumpScore: state.seasonJumpScore,
+        lifetimeJumps: state.lifetimeJumps,
+        racePoints: state.racePoints,
+        activeFrogs,
+        totalFrogs: state.toads.length,
+        tokenBalance: state.tokenBalance,
+        topToad: topToad ? {
+          name: topToad.name,
+          level: topToad.level,
+          rarity: topToad.rarity,
+          active: topToad.active,
+        } : null,
       };
     })
-    .sort((a, b) => b.arenaRating - a.arenaRating)
-    .slice(0, 10);
+    .sort((a, b) => b.dailyJumpScore - a.dailyJumpScore)
+    .slice(0, 20);
 
   return NextResponse.json(entries);
 }

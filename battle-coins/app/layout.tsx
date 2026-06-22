@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "Battle Coins Gacha",
-  description: "Fight enemies, earn tokens, pull gacha!",
+  title: "RunningToads",
+  description: "Race toads, hatch rare racers, and play as an active holder.",
 };
 
 export default function RootLayout({
@@ -13,7 +12,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
-        <Providers>{children}</Providers>
+        {children}
       </body>
     </html>
   );
