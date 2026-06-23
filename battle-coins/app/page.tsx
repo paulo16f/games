@@ -858,10 +858,28 @@ function FrogsTab({
   canSprint: boolean;
 }) {
   const statBarColor: Record<string, string> = {
-    "Speed":    "bg-sky-400",
-    "Stamina":  "bg-lime-400",
-    "Luck":     "bg-yellow-400",
-    "Consist.": "bg-purple-400",
+    "Leap":  "bg-cyan-400",
+    "Vigor": "bg-lime-400",
+    "Fate":  "bg-violet-400",
+    "Focus": "bg-indigo-400",
+  };
+  const statIcon: Record<string, string> = {
+    "Leap":  "💨",
+    "Vigor": "🌿",
+    "Fate":  "🔮",
+    "Focus": "🌙",
+  };
+  const statChipBg: Record<string, string> = {
+    "Leap":  "bg-cyan-400/12",
+    "Vigor": "bg-lime-400/12",
+    "Fate":  "bg-violet-400/12",
+    "Focus": "bg-indigo-400/12",
+  };
+  const statChipLabel: Record<string, string> = {
+    "Leap":  "text-cyan-300",
+    "Vigor": "text-lime-300",
+    "Fate":  "text-violet-300",
+    "Focus": "text-indigo-300",
   };
 
   return (
@@ -870,10 +888,10 @@ function FrogsTab({
         const xpNeeded = toad.level * 25;
         const xpPct = Math.min(100, Math.round((toad.xp / xpNeeded) * 100));
         const stats: [string, number][] = [
-          ["Speed",    toad.speed],
-          ["Stamina",  toad.stamina],
-          ["Luck",     toad.luck],
-          ["Consist.", toad.consistency],
+          ["Leap",  toad.speed],
+          ["Vigor", toad.stamina],
+          ["Fate",  toad.luck],
+          ["Focus", toad.consistency],
         ];
         return (
           <div
@@ -881,7 +899,7 @@ function FrogsTab({
             className={`flex flex-col overflow-hidden rounded-xl border border-l-2 ${toadAccent[toad.kind]} border-white/8 bg-black/22 transition-all`}
           >
             {/* Image area */}
-            <div className="relative flex items-center justify-center py-3">
+            <div className={`relative flex items-center justify-center py-3 transition-all ${toad.active ? "bg-yellow-400/5" : ""}`}>
               <img
                 src={assetPaths.toads[toad.kind]}
                 alt={toad.name}
@@ -916,14 +934,16 @@ function FrogsTab({
               </div>
 
               {/* Stats */}
-              <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-1">
                 {stats.map(([k, v]) => (
-                  <div key={k} className="flex items-center gap-1.5">
-                    <span className="pixel w-16 shrink-0 text-[9px] text-white/55">{k}</span>
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <div key={k} className={`flex flex-col gap-1 rounded-lg p-1.5 ${statChipBg[k]}`}>
+                    <div className="pixel flex items-center justify-between text-[8px]">
+                      <span className={statChipLabel[k]}>{statIcon[k]} {k}</span>
+                      <span className="font-bold text-white/90">{v}</span>
+                    </div>
+                    <div className="h-1 overflow-hidden rounded-full bg-white/10">
                       <div className={`h-full rounded-full ${statBarColor[k]}`} style={{ width: `${Math.min(100, v)}%` }} />
                     </div>
-                    <span className="pixel w-5 shrink-0 text-right text-[9px] font-bold text-white/75">{v}</span>
                   </div>
                 ))}
               </div>
@@ -946,9 +966,10 @@ function FrogsTab({
                 onClick={() => sprintWithToad(toad.id)}
                 disabled={!canSprint}
                 title="Sprint: spend 2 flies for instant jump"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-sm text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none disabled:opacity-35 transition-all"
+                className="flex h-8 w-8 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full bg-yellow-400 text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none disabled:opacity-35 transition-all"
               >
-                🪰
+                <span className="text-sm leading-none">🪰</span>
+                <span className="pixel text-[7px] leading-none">Sprint</span>
               </button>
             </div>
           </div>

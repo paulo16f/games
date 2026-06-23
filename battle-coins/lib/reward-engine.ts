@@ -15,7 +15,6 @@ import { PlayerState, ProjectRewardsLedger, TokenRewardClaim, TokenRewardLedger 
 import { TokenGateResult } from "./token-gate";
 import { burnAndTransfer } from "./treasury-transfer";
 
-const CLAIM_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -173,7 +172,7 @@ export async function claim24hReward(
   if (state.dailyJumpScore <= 0) {
     throw new Error("No active jumps settled for this 24h period");
   }
-  if (state.lastRewardClaimAt && now - state.lastRewardClaimAt < CLAIM_COOLDOWN_MS) {
+  if (state.lastRewardClaimAt && now - state.lastRewardClaimAt < toadJumpConfig.rewardClaimCooldownMs) {
     throw new Error("24h reward is not ready yet");
   }
   if (ledger.dailyClaimCount >= toadJumpConfig.maxDailyTokenClaims) {
@@ -210,7 +209,7 @@ export async function claim24hReward(
   state.flies += fliesGranted;
   state.lastDailyClaimDate = todayKey();
   state.lastRewardClaimAt = now;
-  state.nextRewardClaimAt = now + CLAIM_COOLDOWN_MS;
+  state.nextRewardClaimAt = now + toadJumpConfig.rewardClaimCooldownMs;
   state.latestRewardClaimId = id;
   await savePlayer(state);
 
