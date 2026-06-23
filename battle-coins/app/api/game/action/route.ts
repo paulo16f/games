@@ -5,7 +5,7 @@ import {
   isGameAction,
 } from "@/lib/game-engine";
 import { getOrCreatePlayer, savePlayer } from "@/lib/repository";
-import { checkRunningToadsGate } from "@/lib/token-gate";
+import { checkJumpFrogsGate } from "@/lib/token-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing or invalid action or wallet" }, { status: 400 });
     }
 
-    const gate = await checkRunningToadsGate(body.wallet.trim());
+    const gate = await checkJumpFrogsGate(body.wallet.trim());
     const state = await getOrCreatePlayer(gate.wallet || body.wallet.trim());
     state.tokenBalance = gate.balance;
     state.lastVerifiedAt = Date.now();

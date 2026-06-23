@@ -1,4 +1,4 @@
-import { kvConfigured, runningToadsConfig } from "./config";
+import { kvConfigured, jumpFrogsConfig } from "./config";
 import {
   defaultState,
   migratePlayer,
@@ -15,12 +15,12 @@ import {
 
 declare global {
   // eslint-disable-next-line no-var
-  var __runningToadsRaceEvents: Map<number, RaceEventRecord> | undefined;
+  var __jumpFrogsRaceEvents: Map<number, RaceEventRecord> | undefined;
 }
-if (!global.__runningToadsRaceEvents) {
-  global.__runningToadsRaceEvents = new Map<number, RaceEventRecord>();
+if (!global.__jumpFrogsRaceEvents) {
+  global.__jumpFrogsRaceEvents = new Map<number, RaceEventRecord>();
 }
-const raceEventStore = global.__runningToadsRaceEvents;
+const raceEventStore = global.__jumpFrogsRaceEvents;
 
 const PLAYER_INDEX_KEY = "index:players";
 const PROJECT_LEDGER_KEY = "ledger:project";
@@ -28,10 +28,10 @@ const REWARD_LEDGER_KEY = "ledger:rewards";
 
 async function kvCommand<T>(args: Array<string | number>): Promise<T | null> {
   if (!kvConfigured()) return null;
-  const res = await fetch(runningToadsConfig.kvRestApiUrl, {
+  const res = await fetch(jumpFrogsConfig.kvRestApiUrl, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${runningToadsConfig.kvRestApiToken}`,
+      Authorization: `Bearer ${jumpFrogsConfig.kvRestApiToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(args),

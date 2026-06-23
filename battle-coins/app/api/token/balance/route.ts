@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRunningToadsGate } from "@/lib/token-gate";
+import { checkJumpFrogsGate } from "@/lib/token-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await checkRunningToadsGate(wallet);
+    const result = await checkJumpFrogsGate(wallet);
     return NextResponse.json(result);
   } catch {
     return NextResponse.json(

@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# treasury keypair (contains private key — never commit)
+treasury-devnet.json

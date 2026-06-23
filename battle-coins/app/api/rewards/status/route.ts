@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPlayer } from "@/lib/repository";
 import { rewardStatus } from "@/lib/reward-engine";
-import { requireRunningToadsGate } from "@/lib/token-gate";
+import { requireJumpFrogsGate } from "@/lib/token-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "wallet required" }, { status: 400 });
   }
 
-  const gateResult = await requireRunningToadsGate(wallet);
+  const gateResult = await requireJumpFrogsGate(wallet);
   if (gateResult.error) {
     return NextResponse.json(
       { error: gateResult.error, gate: gateResult.gate },

@@ -1,5 +1,6 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { runningToadsConfig } from "@/lib/config";
+import { jumpFrogsConfig } from "@/lib/config";
 import { getLedger, saveLedger } from "@/lib/repository";
 
 export const dynamic = "force-dynamic";
@@ -43,11 +44,19 @@ async function rpcCall<T>(url: string, body: unknown): Promise<T | null> {
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers.get("authorization");
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (cronSecret) {
+    const provided = authHeader?.replace("Bearer ", "") ?? "";
+    const secretBuf = Buffer.from(cronSecret);
+    const providedBuf = Buffer.from(provided);
+    if (
+      provided.length !== cronSecret.length ||
+      !crypto.timingSafeEqual(secretBuf, providedBuf)
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
-  const { treasuryWallet, rpcUrl } = runningToadsConfig;
+  const { treasuryWallet, rpcUrl } = jumpFrogsConfig;
   if (!treasuryWallet) {
     return NextResponse.json({ error: "TREASURY_WALLET not configured" }, { status: 503 });
   }

@@ -74,4 +74,4 @@ try {
 }
 assert(weeklyBlocked, "weekly rewards should not be claimable without a completed qualifying week");
 
-console.log("RunningToads backend smoke checks passed.");
+console.log("Jump Frogs backend smoke checks passed.");

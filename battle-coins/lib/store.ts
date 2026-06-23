@@ -155,21 +155,21 @@ export interface WeeklyRewardClaim {
 
 declare global {
   // eslint-disable-next-line no-var
-  var __runningToadsStore: Map<string, PlayerState> | undefined;
+  var __jumpFrogsStore: Map<string, PlayerState> | undefined;
   // eslint-disable-next-line no-var
-  var __runningToadsLedger: ProjectRewardsLedger | undefined;
+  var __jumpFrogsLedger: ProjectRewardsLedger | undefined;
   // eslint-disable-next-line no-var
-  var __runningToadsRewardLedger: TokenRewardLedger | undefined;
+  var __jumpFrogsRewardLedger: TokenRewardLedger | undefined;
   // eslint-disable-next-line no-var
-  var __runningToadsRewardClaims: Map<string, TokenRewardClaim> | undefined;
+  var __jumpFrogsRewardClaims: Map<string, TokenRewardClaim> | undefined;
 }
 
-if (!global.__runningToadsStore) {
-  global.__runningToadsStore = new Map<string, PlayerState>();
+if (!global.__jumpFrogsStore) {
+  global.__jumpFrogsStore = new Map<string, PlayerState>();
 }
 
-if (!global.__runningToadsLedger) {
-  global.__runningToadsLedger = {
+if (!global.__jumpFrogsLedger) {
+  global.__jumpFrogsLedger = {
     holderRewardsPool: 0,
     seasonPrizePool: 0,
     buybackBurnPool: 0,
@@ -195,8 +195,8 @@ if (!global.__runningToadsLedger) {
   };
 }
 
-if (!global.__runningToadsRewardLedger) {
-  global.__runningToadsRewardLedger = {
+if (!global.__jumpFrogsRewardLedger) {
+  global.__jumpFrogsRewardLedger = {
     dailyPoolRemaining: 100_000,
     dailyClaimCount: 0,
     dailyClaimDay: new Date().toISOString().slice(0, 10),
@@ -205,14 +205,14 @@ if (!global.__runningToadsRewardLedger) {
   };
 }
 
-if (!global.__runningToadsRewardClaims) {
-  global.__runningToadsRewardClaims = new Map<string, TokenRewardClaim>();
+if (!global.__jumpFrogsRewardClaims) {
+  global.__jumpFrogsRewardClaims = new Map<string, TokenRewardClaim>();
 }
 
-export const store = global.__runningToadsStore;
-export const projectLedger = global.__runningToadsLedger;
-export const tokenRewardLedger = global.__runningToadsRewardLedger;
-export const rewardClaims = global.__runningToadsRewardClaims;
+export const store = global.__jumpFrogsStore;
+export const projectLedger = global.__jumpFrogsLedger;
+export const tokenRewardLedger = global.__jumpFrogsRewardLedger;
+export const rewardClaims = global.__jumpFrogsRewardClaims;
 
 export function makeToad(kind: ToadKind): Toad {
   const template = TOAD_TEMPLATES[kind];

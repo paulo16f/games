@@ -1,5 +1,5 @@
 import { ACTION_COSTS } from "./constants";
-import { runningToadsConfig } from "./config";
+import { jumpFrogsConfig } from "./config";
 import { openEgg } from "./gacha-engine";
 import { settleAutoJump } from "./idle-engine";
 import { getLedger, getRaceEvent, saveRaceEvent, saveLedger } from "./repository";
@@ -99,8 +99,8 @@ export async function handleGameAction(
     }
 
     case "record_creator_rewards": {
-      if (!runningToadsConfig.creatorDashboardKey) throw new GameActionError("Creator dashboard key is not configured", 503);
-      if (input.creatorKey !== runningToadsConfig.creatorDashboardKey) throw new GameActionError("Invalid creator dashboard key", 403);
+      if (!jumpFrogsConfig.creatorDashboardKey) throw new GameActionError("Creator dashboard key is not configured", 503);
+      if (input.creatorKey !== jumpFrogsConfig.creatorDashboardKey) throw new GameActionError("Invalid creator dashboard key", 403);
       const amount = Number(input.amount);
       if (!Number.isFinite(amount) || amount <= 0) throw new GameActionError("amount must be a positive number");
       const ledger = await getLedger();

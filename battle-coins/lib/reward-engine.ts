@@ -1,5 +1,5 @@
 import { DAILY_FLIES } from "./constants";
-import { runningToadsConfig } from "./config";
+import { jumpFrogsConfig } from "./config";
 import {
   getLedger,
   getRewardClaim,
@@ -26,7 +26,7 @@ function normalizeLedger(ledger: TokenRewardLedger): TokenRewardLedger {
   if (ledger.dailyClaimDay !== today) {
     return {
       ...ledger,
-      dailyPoolRemaining: runningToadsConfig.dailyTokenRewardPool,
+      dailyPoolRemaining: jumpFrogsConfig.dailyTokenRewardPool,
       dailyClaimCount: 0,
       dailyClaimDay: today,
     };
@@ -43,7 +43,7 @@ function claimId(wallet: string, now: number): string {
 }
 
 function effectiveBurnRateBps(): number {
-  return runningToadsConfig.burnEnabled ? runningToadsConfig.burnRateBps : 0;
+  return jumpFrogsConfig.burnEnabled ? jumpFrogsConfig.burnRateBps : 0;
 }
 
 async function payClaim(
@@ -52,7 +52,7 @@ async function payClaim(
   projectLedger: ProjectRewardsLedger
 ): Promise<TokenRewardClaim> {
   try {
-    if (claim.amount < runningToadsConfig.minTokenClaimAmount) {
+    if (claim.amount < jumpFrogsConfig.minTokenClaimAmount) {
       const burnBps = effectiveBurnRateBps();
       const notionalBurn = Math.floor(claim.amount * burnBps / 10_000 * 100) / 100;
       claim.status = "paid";
@@ -73,11 +73,20 @@ async function payClaim(
       throw new Error("Daily token reward pool is empty");
     }
 
+    if (!jumpFrogsConfig.treasuryPrivateKey || !jumpFrogsConfig.tokenMint) {
+      claim.status = "paid";
+      claim.txSignature = null;
+      claim.netAmount = 0;
+      claim.burnedAmount = 0;
+      claim.error = "Treasury not configured — flies granted only";
+      return saveRewardClaim(claim);
+    }
+
     const result = await burnAndTransfer(
       claim.wallet,
       claim.amount,
       effectiveBurnRateBps(),
-      runningToadsConfig.tokenDecimals,
+      jumpFrogsConfig.tokenDecimals,
     );
 
     claim.status = "paid";
@@ -136,7 +145,7 @@ async function activeRewardAmount(state: PlayerState, projectLedger: ProjectRewa
   const rank = await claimRank(state.wallet);
   const share = (state.dailyJumpScore * rankMultiplier(rank)) / weightedTotal;
   return Math.min(
-    runningToadsConfig.dailyTokenRewardAmount,
+    jumpFrogsConfig.dailyTokenRewardAmount,
     Math.floor(projectLedger.dailyActivePool * share * 100) / 100
   );
 }
@@ -167,7 +176,7 @@ export async function claim24hReward(
   if (state.lastRewardClaimAt && now - state.lastRewardClaimAt < CLAIM_COOLDOWN_MS) {
     throw new Error("24h reward is not ready yet");
   }
-  if (ledger.dailyClaimCount >= runningToadsConfig.maxDailyTokenClaims) {
+  if (ledger.dailyClaimCount >= jumpFrogsConfig.maxDailyTokenClaims) {
     throw new Error("Daily token reward claim limit reached");
   }
   if (projectLedger.dailyActivePool <= 0) {
@@ -228,13 +237,13 @@ export async function payRacePrize(
   amount: number,
   projectLedger: ProjectRewardsLedger
 ): Promise<string | null> {
-  if (amount < runningToadsConfig.minTokenClaimAmount) return null;
+  if (amount < jumpFrogsConfig.minTokenClaimAmount) return null;
   try {
     const result = await burnAndTransfer(
       wallet,
       amount,
       effectiveBurnRateBps(),
-      runningToadsConfig.tokenDecimals
+      jumpFrogsConfig.tokenDecimals
     );
     projectLedger.totalTokensBurned += result.burnedAmount;
     projectLedger.dailyTokensBurned += result.burnedAmount;

@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Coins, Egg, Flag, History, LayoutDashboard, Play, Trophy, Users } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Activity, Coins, Egg, Flag, History, LayoutDashboard, Trophy, Users } from "lucide-react";
 import {
   ACTION_COSTS,
-  RUNNING_TOADS_BUY_URL,
-  RUNNING_TOADS_TOKEN_SYMBOL,
+  JUMP_FROGS_BUY_URL,
+  JUMP_FROGS_TOKEN_SYMBOL,
   ToadKind,
 } from "@/lib/constants";
 import { PlayerState, ProjectRewardsLedger, Toad } from "@/lib/store";
@@ -62,13 +62,13 @@ interface CreatorDashboard {
 
 
 
-const gameTabs: Array<{ id: GameTab; label: string; Icon: typeof Play }> = [
-  { id: "play",        label: "Play",        Icon: Play },
+const gameTabs: Array<{ id: GameTab; label: string; Icon: typeof Activity }> = [
+  { id: "play",        label: "Activity",    Icon: Activity },
   { id: "frogs",       label: "Frogs",       Icon: Users },
   { id: "hatch",       label: "Hatch",       Icon: Egg },
   { id: "races",       label: "Races",       Icon: Flag },
   { id: "rewards",     label: "Rewards",     Icon: Coins },
-  { id: "leaderboard", label: "Leaderboard", Icon: Trophy },
+  { id: "leaderboard", label: "Ranks",       Icon: Trophy },
   { id: "seasons",     label: "Seasons",     Icon: History },
   { id: "creator",     label: "Creator",     Icon: LayoutDashboard },
 ];
@@ -200,47 +200,22 @@ function SpriteSheet({ src, alt, frames = 8, className }: { src: string; alt: st
   );
 }
 
-function ResourcePill({ label, value, tone = "lime" }: { label: string; value: string | number; tone?: "lime" | "sky" | "yellow" | "white" }) {
-  const toneClass = {
-    lime: "text-lime-100 border-lime-200/20 bg-lime-300/10",
-    sky: "text-sky-100 border-sky-200/20 bg-sky-300/10",
-    yellow: "text-yellow-100 border-yellow-200/20 bg-yellow-300/10",
-    white: "text-white border-white/10 bg-white/5",
-  }[tone];
-
-  return (
-    <div className={`hud-pill ${toneClass}`}>
-      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">{label}</div>
-      <div className="mt-0.5 min-w-0 truncate font-mono text-sm font-black">{value}</div>
-    </div>
-  );
-}
-
-function StatBox({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-lg border border-white/10 bg-black/24 px-3 py-2 text-center">
-      <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/38">{label}</div>
-      <div className="mt-1 font-mono text-base font-black text-lime-100">{value}</div>
-    </div>
-  );
-}
-
 
 function TabNav({ activeTab, onChange }: { activeTab: GameTab; onChange: (tab: GameTab) => void }) {
   return (
     <>
-      <nav className="hidden w-24 shrink-0 flex-col gap-2 xl:flex">
+      <nav className="hidden w-28 shrink-0 flex-col gap-1 xl:flex">
         {gameTabs.map((tab) => (
           <button key={tab.id} onClick={() => onChange(tab.id)} className={`tab-button ${activeTab === tab.id ? "tab-button-active" : ""}`}>
-            <span className="tab-icon"><tab.Icon size={16} strokeWidth={2.5} /></span>
+            <tab.Icon size={16} strokeWidth={2} />
             <span>{tab.label}</span>
           </button>
         ))}
       </nav>
-      <nav className="fixed inset-x-3 bottom-3 z-40 flex gap-2 overflow-x-auto rounded-2xl border border-lime-200/20 bg-emerald-950/94 p-2 shadow-2xl backdrop-blur xl:hidden">
+      <nav className="fixed inset-x-2 bottom-2 z-40 flex gap-1 overflow-x-auto rounded-2xl border border-yellow-400/20 bg-[#0d0018]/95 p-1.5 shadow-2xl backdrop-blur xl:hidden">
         {gameTabs.map((tab) => (
-          <button key={tab.id} onClick={() => onChange(tab.id)} className={`tab-button mobile-tab ${activeTab === tab.id ? "tab-button-active" : ""}`}>
-            <span className="tab-icon"><tab.Icon size={14} strokeWidth={2.5} /></span>
+          <button key={tab.id} onClick={() => onChange(tab.id)} className={`tab-button mobile-tab flex-1 ${activeTab === tab.id ? "tab-button-active" : ""}`}>
+            <tab.Icon size={14} strokeWidth={2} />
             <span>{tab.label}</span>
           </button>
         ))}
@@ -252,15 +227,11 @@ function TabNav({ activeTab, onChange }: { activeTab: GameTab; onChange: (tab: G
 function TopHud({
   player,
   gate,
-  activeFrogs,
-  message,
   guestMode,
   onConnectWallet,
 }: {
   player: PlayerState;
   gate: GateResult | null;
-  activeFrogs: number;
-  message: string;
   guestMode?: boolean;
   onConnectWallet?: () => void;
 }) {
@@ -268,45 +239,30 @@ function TopHud({
   const boost = tokenBoost(balance);
 
   return (
-    <header className="sticky top-0 z-30 game-panel p-3">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <FallbackImage
-            src={assetPaths.logo}
-            fallback={assetPaths.sourceToads}
-            alt="RunningToads"
-            className="h-14 w-24 shrink-0 rounded-lg border border-lime-200/20 bg-black/35 object-cover object-top"
-          />
-          <div className="min-w-0">
-            <div className="text-xs font-black uppercase tracking-[0.24em] text-lime-200">RunningToads</div>
-            <div className="truncate text-sm font-semibold text-emerald-50/70">{message || "Active jumping frogs share the daily pool."}</div>
+    <header className="sticky top-0 z-30 game-panel">
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        {/* Left: logo + wordmark */}
+        <FallbackImage
+          src={assetPaths.logo}
+          fallback={assetPaths.sourceToads}
+          alt="Jump Frogs"
+          className="h-9 w-9 shrink-0 rounded-lg object-cover"
+        />
+        <span className="pixel text-[13px] text-yellow-300 leading-tight">Jump Frogs</span>
+
+        {/* Right: stats pushed to the right */}
+        {guestMode ? (
+          <button onClick={onConnectWallet} className="ml-auto text-base font-bold text-amber-300 hover:text-amber-200 transition-colors">
+            Guest · Connect wallet →
+          </button>
+        ) : (
+          <div className="ml-auto flex items-center gap-4">
+            <span className="hidden font-mono text-base text-white/55 sm:block">{formatWallet(player.wallet)}</span>
+            <span className="text-sm text-white/55">🪰 <span className="font-mono font-bold text-yellow-300">{player.flies}</span></span>
+            <span className="text-sm text-white/55"><span className="font-mono font-bold text-yellow-300">{shortNumber(balance)}</span> <span className="text-white/40">$TOAD</span></span>
+            <span className={boost.cls}>{boost.mult} {boost.label}</span>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:min-w-0 lg:flex-wrap lg:justify-end">
-          {guestMode ? (
-            <button
-              onClick={onConnectWallet}
-              className="hud-pill border-amber-200/30 bg-amber-300/15 text-amber-200 hover:bg-amber-300/25 transition-colors cursor-pointer col-span-2 sm:col-span-3"
-            >
-              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-200/70">Guest mode</div>
-              <div className="mt-0.5 text-sm font-black">🔗 Connect wallet to save progress</div>
-            </button>
-          ) : (
-            <>
-              <ResourcePill label="Wallet" value={formatWallet(player.wallet)} tone="white" />
-              <ResourcePill label="Flies" value={player.flies} tone="lime" />
-              <ResourcePill label="Tokens" value={shortNumber(balance)} tone="yellow" />
-              <ResourcePill label="Jumping" value={activeFrogs} tone="sky" />
-              <ResourcePill label="Score" value={player.weeklyScore} tone="yellow" />
-              <div className="hud-pill border-yellow-200/20 bg-yellow-300/10 text-yellow-100">
-                <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Boost</div>
-                <div className="mt-0.5 flex items-center gap-1.5">
-                  <span className={boost.cls}>{boost.mult} {boost.label}</span>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        )}
       </div>
     </header>
   );
@@ -335,93 +291,82 @@ function EntryScreen({
 }) {
   return (
     <main
-      className="relative min-h-screen text-white flex flex-col items-center justify-center px-4"
+      className="relative min-h-screen text-white flex flex-col px-4"
       style={{ backgroundImage: `url(${assetPaths.forest})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
-      <div className="absolute inset-0 bg-black/58" />
+      <div className="absolute inset-0 bg-black/60" />
 
-      <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-8">
-        {/* Logo + wordmark */}
-        <div className="flex flex-col items-center gap-3">
+      {/* Top — hero */}
+      <div className="relative z-10 flex flex-col items-center gap-3 pt-12 pb-6">
+        <div style={{ filter: "drop-shadow(0 0 28px rgba(255,215,0,0.55))" }}>
           <FallbackImage
             src={assetPaths.logo}
             fallback={assetPaths.sourceToads}
-            alt="RunningToads"
-            className="h-24 w-24 rounded-2xl border border-lime-200/30 bg-black/40 object-cover shadow-[0_0_60px_rgba(190,242,100,0.3)]"
+            alt="Jump Frogs"
+            className="h-24 w-24 object-contain"
           />
-          <h1 className="text-5xl font-black tracking-tight text-lime-50 drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)]">
-            RunningToads
-          </h1>
-          <p className="text-sm font-semibold text-white/55">Earn tokens. Race frogs.</p>
         </div>
+        <h1 className="pixel text-2xl text-yellow-300 sm:text-3xl">Jump Frogs</h1>
+        <p className="pixel text-sm text-white/80">Idle frogs. Real tokens. On Solana.</p>
+      </div>
 
-        {/* CTA card */}
-        <div className="w-full rounded-2xl border border-white/14 bg-black/40 p-5 backdrop-blur-md">
+      {/* Middle — connect card */}
+      <div className="relative z-10 flex flex-1 items-center justify-center py-4">
+        <div className="w-full max-w-sm rounded-xl border border-white/15 bg-black/35 p-5 backdrop-blur-md">
           <input
             value={walletInput}
             onChange={(event) => setWalletInput(event.target.value)}
             onKeyDown={(event) => event.key === "Enter" && checkAccess()}
             placeholder="Paste Solana wallet address"
-            className="w-full rounded-xl border border-white/12 bg-white/8 px-4 py-3.5 text-sm text-white outline-none placeholder:text-white/35 focus:border-lime-300/60"
+            className="pixel w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/55 focus:border-yellow-400/60 transition-colors"
           />
           {message && (
-            <div className="mt-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white/65" aria-live="polite">
-              {message}
-            </div>
+            <div className="pixel mt-2 text-sm text-white/80" aria-live="polite">{message}</div>
           )}
-          <div className="mt-3 grid grid-cols-2 gap-3">
+          {gate?.balance !== undefined && (
+            <div className="pixel mt-1 text-sm text-white/80">Balance: <span className="font-mono font-bold text-yellow-300">{shortNumber(gate.balance)}</span> {gate.symbol}</div>
+          )}
+          <div className="mt-4 grid grid-cols-2 gap-3">
             <button
               onClick={checkAccess}
               disabled={busy}
-              className="rounded-xl bg-lime-300 py-4 text-sm font-black text-emerald-950 shadow-[0_10px_30px_rgba(190,242,100,0.28)] hover:bg-lime-200 active:scale-95 transition-all disabled:opacity-50"
+              className="pixel rounded-lg bg-yellow-400 py-4 text-sm font-black text-black shadow-[0_4px_0_rgba(0,0,0,0.5),0_0_20px_rgba(255,215,0,0.3)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
             >
-              {busyAction === "check" ? "Loading..." : "▶ Connect Wallet"}
+              {busyAction === "check" ? "Loading..." : "▶ Connect"}
             </button>
             <button
               onClick={onPlayAsGuest}
               disabled={busy}
-              className="rounded-xl border border-white/16 bg-white/8 py-4 text-sm font-black text-white/80 hover:bg-white/14 active:scale-95 transition-all disabled:opacity-50"
+              className="pixel rounded-lg border border-white/30 bg-white/12 py-4 text-sm font-black text-white hover:bg-white/20 active:scale-95 transition-all disabled:opacity-50"
             >
-              👁 Play as Guest
+              👁 Guest
             </button>
           </div>
-          {gate && gate.balance !== undefined && (
-            <div className="mt-3 text-center text-xs text-white/45">
-              Balance: {shortNumber(gate.balance)} {gate.symbol}
-            </div>
-          )}
         </div>
+      </div>
 
-        {/* Boost tiers collapsed */}
-        <details className="w-full">
-          <summary className="cursor-pointer text-center text-xs font-black uppercase tracking-[0.16em] text-white/30 hover:text-white/50 transition-colors">
-            Token boost tiers ↓
-          </summary>
-          <div className="mt-3 space-y-1.5">
-            {[
-              { icon: "⚪", mult: "1×",   label: "No boost",  req: "0 tokens"       },
-              { icon: "🟢", mult: "1.2×", label: "Holder",    req: "1+ tokens"      },
-              { icon: "🔵", mult: "1.5×", label: "Stacker",   req: "100+ tokens"    },
-              { icon: "🟣", mult: "2×",   label: "Whale",     req: "1,000+ tokens"  },
-              { icon: "🟡", mult: "3×",   label: "Legend",    req: "10,000+ tokens" },
-            ].map((tier) => (
-              <div key={tier.mult} className="flex items-center justify-between rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white/60">
-                <span className="flex items-center gap-2">
-                  <span>{tier.icon}</span>
-                  <span className="font-bold">{tier.mult}</span>
-                  <span className="text-white/38">{tier.label}</span>
-                </span>
-                <span className="font-mono text-white/35">{tier.req}</span>
-              </div>
-            ))}
-          </div>
-        </details>
-
+      {/* Bottom — boost tiers */}
+      <div className="relative z-10 w-full max-w-sm mx-auto pb-8">
+        <div className="mb-3 pixel text-center text-sm text-white/70 uppercase tracking-widest">Hold tokens to boost your score</div>
+        <div className="space-y-1.5">
+          {[
+            { mult: "1×",   label: "No boost",  req: "0 tokens",       color: "text-white/55" },
+            { mult: "1.2×", label: "Holder",    req: "1+ tokens",      color: "text-white/75" },
+            { mult: "1.5×", label: "Stacker",   req: "100+ tokens",    color: "text-white/90" },
+            { mult: "2×",   label: "Whale",     req: "1,000+ tokens",  color: "text-yellow-200" },
+            { mult: "3×",   label: "Legend",    req: "10,000+ tokens", color: "text-yellow-300" },
+          ].map((tier) => (
+            <div key={tier.mult} className="flex items-center justify-between rounded-lg border border-white/12 bg-black/25 backdrop-blur-sm px-3 py-2.5">
+              <span className={`pixel text-sm font-black ${tier.color}`}>{tier.mult} {tier.label}</span>
+              <span className="pixel text-sm text-white/60">{tier.req}</span>
+            </div>
+          ))}
+        </div>
         <a
-          href={RUNNING_TOADS_BUY_URL}
+          href={JUMP_FROGS_BUY_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs font-black uppercase tracking-[0.14em] text-lime-200/55 hover:text-lime-200/80 transition-colors"
+          className="pixel mt-3 block text-center text-sm text-yellow-300/75 hover:text-yellow-300 transition-colors"
         >
           Buy {tokenSymbol} to boost →
         </a>
@@ -473,32 +418,41 @@ function FlyClaimStrip({
   const secs = Math.floor((remaining % 60_000) / 1000);
 
   return (
-    <div className="flex items-center justify-between rounded-xl border border-lime-200/18 bg-lime-300/7 px-4 py-3">
-      <div>
-        <div className="text-xs font-black text-lime-200">Flies</div>
-        <div className="text-[10px] text-white/38">
-          {onCooldown
-            ? `Next free claim in ${mins}:${String(secs).padStart(2, "0")}`
-            : "+5 flies ready to claim"}
+    <div className="rounded-xl border-2 border-yellow-400/30 bg-yellow-400/6 p-4"
+      style={{ boxShadow: "0 0 18px rgba(255,215,0,0.08) inset" }}>
+      <div className="flex items-center justify-between gap-3">
+        {/* Fly counter */}
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="pixel text-sm text-yellow-400">🪰 FLIES</span>
+            <span className="pixel font-mono text-3xl font-black text-white">{player.flies}</span>
+          </div>
+          <div className="pixel text-sm text-white/55 mt-2 leading-loose">
+            {onCooldown
+              ? `⏳ next in ${mins}:${String(secs).padStart(2, "0")}`
+              : "▶ free +5 ready!"}
+          </div>
         </div>
-      </div>
-      <div className="flex gap-2">
-        {onCooldown && balance >= 1 && (
+
+        {/* Buttons */}
+        <div className="flex flex-col gap-2 shrink-0">
+          {onCooldown && balance >= 1 && (
+            <button
+              onClick={claimFliesSkip}
+              disabled={busy}
+              className="pixel text-sm rounded-lg border border-yellow-200/35 bg-yellow-300/12 px-3 py-2 text-yellow-200 hover:bg-yellow-300/22 active:scale-95 transition-all disabled:opacity-40"
+            >
+              Skip w/ Token
+            </button>
+          )}
           <button
-            onClick={claimFliesSkip}
-            disabled={busy}
-            className="rounded-lg border border-yellow-200/30 bg-yellow-300/10 px-3 py-1.5 text-xs font-black text-yellow-200 hover:bg-yellow-300/20 active:scale-95 transition-all disabled:opacity-40"
+            onClick={claimDailyFlies}
+            disabled={busy || onCooldown}
+            className="pixel text-sm rounded-lg bg-yellow-400 px-4 py-2.5 text-black shadow-[0_4px_0_rgba(0,0,0,0.45),0_0_16px_rgba(255,215,0,0.3)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-40"
           >
-            🪙 Token Skip
+            {onCooldown ? "✓ Claimed" : "Claim +5 🪰"}
           </button>
-        )}
-        <button
-          onClick={claimDailyFlies}
-          disabled={busy || onCooldown}
-          className="rounded-lg bg-lime-300 px-4 py-1.5 text-xs font-black text-emerald-950 hover:bg-lime-200 active:scale-95 transition-all disabled:opacity-40"
-        >
-          {onCooldown ? "✓ Done" : "Claim +5 🪰"}
-        </button>
+        </div>
       </div>
     </div>
   );
@@ -512,33 +466,45 @@ const RARITY_CYCLE_MS: Record<string, number> = {
   Legendary:  1_000,
 };
 
-// Bar cycles at rarity speed, counter goes +1 on each hop
-function LiveJumpProgress({ toad, balance: _balance }: { toad: Toad; balance: number }) {
+function LiveJumpStats({ toad, scorePerJump, compact = false }: { toad: Toad; scorePerJump: number; compact?: boolean }) {
   const [hops, setHops] = useState(0);
-  const [pct, setPct] = useState(0);
 
   useEffect(() => {
     const CYCLE = RARITY_CYCLE_MS[toad.rarity] ?? 5_000;
     const start = Date.now();
-
     const id = setInterval(() => {
       const elapsed = Date.now() - start;
-      const cycle = Math.floor(elapsed / CYCLE);
-      const progress = ((elapsed % CYCLE) / CYCLE) * 100;
-      setHops(cycle);
-      setPct(progress);
-    }, 50);
-
+      setHops(Math.floor(elapsed / CYCLE));
+    }, 250);
     return () => clearInterval(id);
   }, [toad.rarity]);
 
+  const sessionPts = hops * scorePerJump;
+
+  if (compact) {
+    return (
+      <div className="mt-2 pt-2 border-t border-white/10 flex justify-around text-center">
+        <div>
+          <div key={hops} className="num-tick pixel font-mono text-base font-black text-white">{hops}</div>
+          <div className="pixel text-sm text-white/50 mt-0.5">hops</div>
+        </div>
+        <div>
+          <div key={sessionPts} className="num-tick pixel font-mono text-base font-black text-yellow-300">{shortNumber(sessionPts)}</div>
+          <div className="pixel text-sm text-white/50 mt-0.5">pts</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-3 space-y-1.5">
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full bg-lime-300"
-          style={{ width: `${pct}%`, transition: pct < 2 ? "none" : "width 50ms linear" }}
-        />
+    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/10 w-full">
+      <div className="text-center">
+        <div key={hops} className="num-tick pixel font-mono text-2xl font-black text-white">{hops}</div>
+        <div className="pixel text-sm text-white/60 mt-0.5">Session hops</div>
+      </div>
+      <div className="text-center">
+        <div key={sessionPts} className="num-tick pixel font-mono text-2xl font-black text-yellow-300">{shortNumber(sessionPts)}</div>
+        <div className="pixel text-sm text-white/60 mt-0.5">Pts earned</div>
       </div>
     </div>
   );
@@ -593,77 +559,68 @@ function PlayTab({
   return (
     <section className="space-y-3">
 
-      {/* Stats strip */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <StatBox label="Today's score"  value={shortNumber(player.dailyJumpScore)} />
-        <StatBox label="Season score"   value={shortNumber(player.seasonJumpScore)} />
-        <StatBox label="All-time jumps" value={shortNumber(player.lifetimeJumps)} />
-        <StatBox label="Jumping now"    value={activeToads.length} />
+      {/* Stat strip — 4 equal columns across full width */}
+      <div className="grid grid-cols-3 divide-x divide-yellow-400/10 rounded-lg border border-yellow-400/18 bg-yellow-400/4">
+        {[
+          { label: "Daily pts",   value: shortNumber(player.dailyJumpScore) },
+          { label: "Total jumps", value: shortNumber(player.lifetimeJumps) },
+          { label: "Frogs",       value: activeToads.length },
+        ].map(({ label, value }) => (
+          <div key={label} className="flex flex-col items-center gap-1.5 py-3">
+            <span className="pixel text-base font-black leading-none text-yellow-300">{value}</span>
+            <span className="pixel text-sm text-white/55 text-center px-1">{label}</span>
+          </div>
+        ))}
       </div>
 
       {/* Fly claim strip */}
       <FlyClaimStrip player={player} balance={balance} busy={busy} claimDailyFlies={claimDailyFlies} claimFliesSkip={claimFliesSkip} />
 
-      {/* Active frogs */}
+      {/* Active frogs — 2 per row */}
       {activeToads.length > 0 ? (
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           {activeToads.map(toad => {
-            const { scorePerJump, intervalMin, ptsPerHour } = toadEarningInfo(toad);
+            const { scorePerJump, ptsPerHour } = toadEarningInfo(toad);
             return (
               <div
                 key={toad.id}
-                className={`relative flex items-stretch overflow-hidden rounded-2xl border border-l-4 ${toadTone[toad.kind]} ${toadAccent[toad.kind]}`}
+                className={`overflow-hidden rounded-xl border border-l-4 p-3 ${toadTone[toad.kind]} ${toadAccent[toad.kind]}`}
               >
+                {/* Name on top */}
+                <div className="text-center mb-2">
+                  <div className="pixel text-sm font-black text-white leading-tight truncate">{toad.name}</div>
+                  <div className="pixel text-sm text-white/50 mt-1">{toad.rarity}<br/>Lv {toad.level}</div>
+                </div>
+
                 {/* Sprite */}
-                <div className="relative shrink-0 flex items-center justify-center">
-                  <div className="absolute inset-3 rounded-full bg-lime-300/10 animate-pulse" />
-                  <ToadSprite toad={toad} className="relative z-10 h-56 w-56" />
-                  <span className="absolute left-2 top-2 z-20 rounded-full bg-black/50 px-2 py-0.5 text-[9px] font-black text-white/80 backdrop-blur-sm">
-                    Lv {toad.level}
-                  </span>
+                <div className="flex justify-center my-2">
+                  <ToadSprite toad={toad} className="h-24 w-24" />
                 </div>
 
-                {/* Info */}
-                <div className="flex flex-1 flex-col gap-3 px-6 py-5">
-                  {/* Name + rarity */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl font-black text-white">{toad.name}</span>
-                    <span className="rounded-full border border-white/15 bg-white/8 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white/50">
-                      {toad.rarity}
-                    </span>
+                {/* Stats */}
+                <div className="space-y-1.5 mt-2">
+                  <div className="rounded-lg border border-yellow-400/12 bg-yellow-400/5 py-2 text-center">
+                    <div className="pixel font-mono text-base font-black text-yellow-300">{shortNumber(ptsPerHour)}</div>
+                    <div className="pixel text-sm text-white/50 mt-0.5">pts / hr</div>
                   </div>
-
-                  {/* 2-col metrics */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="text-5xl font-black leading-none text-lime-300">{shortNumber(ptsPerHour)}</div>
-                      <div className="mt-1 text-[11px] font-black uppercase tracking-wider text-white/38">pts / hr</div>
-                    </div>
-                    <div>
-                      <div className="text-5xl font-black leading-none text-sky-300">{shortNumber(toad.jumps ?? 0)}</div>
-                      <div className="mt-1 text-[11px] font-black uppercase tracking-wider text-white/38">jumps all time</div>
-                    </div>
+                  <div className="rounded-lg border border-sky-400/12 bg-sky-400/5 py-2 text-center">
+                    <div className="pixel font-mono text-base font-black text-sky-300">{shortNumber(toad.jumps ?? 0)}</div>
+                    <div className="pixel text-sm text-white/50 mt-0.5">all jumps</div>
                   </div>
-
-                  {/* Secondary */}
-                  <div className="text-xs text-white/30">
-                    ~{scorePerJump} pts &nbsp;·&nbsp; every {intervalMin} min
-                  </div>
-
-                  {/* Progress */}
-                  <LiveJumpProgress toad={toad} balance={balance} />
                 </div>
+
+                <LiveJumpStats toad={toad} scorePerJump={scorePerJump} compact />
               </div>
             );
           })}
         </div>
       ) : (
-        <div className="game-panel flex flex-col items-center gap-3 py-12 text-center">
-          <div className="text-6xl">😴</div>
-          <div className="text-sm font-black text-white/40">No frogs jumping yet</div>
+        <div className="flex flex-col items-center gap-4 py-12 text-center">
+          <div className="text-5xl opacity-40">😴</div>
+          <div className="pixel text-sm text-white/40">No frogs jumping yet</div>
           <button
             onClick={goToFrogs}
-            className="rounded-lg bg-lime-300/15 px-4 py-2 text-xs font-black text-lime-200 transition-colors hover:bg-lime-300/25"
+            className="pixel text-sm rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white/60 transition-colors hover:bg-white/10"
           >
             Go to Frogs →
           </button>
@@ -681,76 +638,7 @@ function racePotential(toad: Toad): { luckPts: number; levelPts: number; statPts
   return { luckPts, levelPts, statPts, total: luckPts + levelPts + statPts };
 }
 
-const raritySpecialty: Partial<Record<string, string>> = {
-  shadow:  "Shadow's high luck = biggest upset potential 🌑",
-  emperor: "Emperor has the highest ceiling — but never a sure thing 👑",
-  crystal: "Crystal's stamina gives a reliable stat floor 💎",
-  poison:  "Poison's speed adds a small stat edge 🐸",
-};
 
-function FrogPickerCard({ toad, selected, onSelect }: { toad: Toad; selected: boolean; onSelect: () => void }) {
-  const pot = racePotential(toad);
-  const ringClass = selected
-    ? `ring-2 ring-lime-300 ${toadTone[toad.kind]} opacity-100`
-    : `${toadTone[toad.kind]} opacity-60 hover:opacity-90`;
-  return (
-    <button
-      onClick={onSelect}
-      className={`flex shrink-0 flex-col items-center gap-1.5 rounded-2xl border p-3 transition-all ${ringClass} w-28`}
-    >
-      <img src={assetPaths.toads[toad.kind]} alt={toad.name} className="h-16 w-16 object-contain" />
-      <div className="text-center">
-        <div className="text-xs font-black text-white truncate max-w-full">{toad.name}</div>
-        <div className="text-[9px] text-white/45 truncate">{toad.rarity} · Lv {toad.level}</div>
-        <div className="mt-1 font-mono text-sm font-black text-yellow-300">⚡{pot.total}</div>
-      </div>
-    </button>
-  );
-}
-
-function RacePotentialPanel({ toad }: { toad: Toad }) {
-  const { luckPts, levelPts, statPts, total } = racePotential(toad);
-  const MAX_REF = 39; // Emperor Lv13 max potential
-  const bars = [
-    { label: "Luck ceiling", value: luckPts, max: MAX_REF, color: "bg-yellow-400" },
-    { label: "Level edge",   value: levelPts, max: MAX_REF, color: "bg-lime-400" },
-    { label: "Stat floor",   value: statPts,  max: MAX_REF, color: "bg-sky-400" },
-  ];
-  const scoreFloor = Math.round(statPts + levelPts);
-  const scoreCeiling = Math.round(75 + total);
-  const specialty = raritySpecialty[toad.kind];
-
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/24 p-4">
-      <div className="flex items-baseline gap-3">
-        <div>
-          <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/38">Race Potential</div>
-          <div className="font-mono text-4xl font-black text-yellow-300">{total}</div>
-        </div>
-        <div className="text-[10px] text-white/30 leading-relaxed">
-          Score range<br />~{scoreFloor}–{scoreCeiling}
-        </div>
-      </div>
-      <div className="mt-3 space-y-2">
-        {bars.map(b => (
-          <div key={b.label} className="flex items-center gap-2">
-            <span className="w-20 shrink-0 text-[9px] font-black uppercase tracking-wide text-white/35">{b.label}</span>
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/8">
-              <div className={`h-full rounded-full ${b.color}`} style={{ width: `${Math.min(100, Math.round((b.value / b.max) * 100))}%` }} />
-            </div>
-            <span className="w-5 shrink-0 text-right text-[9px] font-black text-white/50">+{b.value}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 rounded-lg border border-yellow-200/14 bg-yellow-300/6 px-3 py-2 text-center text-[10px] text-yellow-100/60">
-        🎲 75% of your score is pure luck — any frog can win!
-      </div>
-      {specialty && (
-        <div className="mt-2 text-center text-[10px] text-white/38">{specialty}</div>
-      )}
-    </div>
-  );
-}
 
 function RacesTab({
   player,
@@ -764,20 +652,18 @@ function RacesTab({
   enterRaceEventWithToad: (toadId: string) => void;
 }) {
   const [now, setNow] = useState(Date.now());
-  const [selectedToadId, setSelectedToadId] = useState<string | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Auto-select active toad as default
-  useEffect(() => {
-    if (!selectedToadId && player.toads.length > 0) {
-      const active = player.toads.find(t => t.active) ?? player.toads[0];
-      setSelectedToadId(active.id);
-    }
-  }, [player.toads, selectedToadId]);
+  // Always auto-select the strongest frog by race potential
+  const selectedToad = player.toads.length > 0
+    ? player.toads.reduce((best, toad) =>
+        racePotential(toad).total >= racePotential(best).total ? toad : best
+      )
+    : null;
 
   const windowId = Math.floor(now / 1_800_000);
   const endsAt = (windowId + 1) * 1_800_000;
@@ -786,21 +672,19 @@ function RacesTab({
   const secs = Math.floor((remaining % 60_000) / 1000);
   const isClosing = remaining < 60_000;
 
-  const selectedToad = player.toads.find(t => t.id === selectedToadId) ?? null;
   const alreadyEntered = player.lastRaceWindowId === windowId;
-  const realEntrantCount = alreadyEntered ? 1 : 0; // approximate — server tracks actual count
+  const realEntrantCount = alreadyEntered ? 1 : 0;
   const npcSlots = Math.max(0, 4 - realEntrantCount - 1);
-
   const racePool = season?.projectLedger.racePool ?? 0;
   const result = player.lastRaceResult;
 
   const enterButtonLabel = () => {
     if (busy) return "Entering...";
-    if (alreadyEntered) return "Entered ✓ — waiting for race close";
-    if (isClosing) return "Race closing — next window soon";
-    if (!selectedToad) return "Pick a frog above";
-    if (player.flies < 2) return "Need 2 🪰 flies to enter";
-    return "Enter Race · 2 🪰";
+    if (alreadyEntered) return "✓ Entered — awaiting race close";
+    if (isClosing) return "Race closing — wait for next";
+    if (!selectedToad) return "Hatch a frog first!";
+    if (player.flies < 2) return "Need 2 flies to enter";
+    return "🏁 Enter Race · 2 🪰";
   };
   const canEnter = !busy && !alreadyEntered && !isClosing && !!selectedToad && player.flies >= 2;
   const enterButtonStyle = alreadyEntered
@@ -808,7 +692,7 @@ function RacesTab({
     : isClosing
     ? "bg-amber-300/15 text-amber-200 border border-amber-300/20"
     : canEnter
-    ? "bg-lime-300 text-emerald-950 shadow-[0_0_30px_rgba(190,242,100,0.25)] hover:bg-lime-200 active:scale-95"
+    ? "bg-yellow-400 text-black shadow-[0_4px_0_rgba(0,0,0,0.5),0_0_24px_rgba(255,215,0,0.35)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none"
     : "bg-white/8 text-white/30 border border-white/10";
 
   const rankBorder = (rank: number) =>
@@ -820,111 +704,136 @@ function RacesTab({
   return (
     <section className="space-y-3">
 
-      {/* Zone 1 — Race window header */}
+      {/* Zone 1 — Countdown + Prize pool */}
       <div className="game-panel p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">Race closes in</div>
-            <div className={`font-mono text-5xl font-black leading-none ${isClosing ? "animate-pulse text-red-400" : "text-lime-300"}`}>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-yellow-400/15 bg-yellow-400/5 py-4 px-2">
+            <div className="pixel text-base text-white/60 uppercase tracking-widest">Closes in</div>
+            <div className={`pixel text-2xl leading-none ${isClosing ? "animate-pulse text-red-400" : "text-yellow-300"}`}>
               {String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="rounded-xl border border-yellow-200/20 bg-yellow-300/8 px-3 py-2 text-center">
-              <div className="font-mono text-xl font-black text-yellow-200">{shortNumber(racePool)}</div>
-              <div className="text-[9px] font-black uppercase tracking-wide text-yellow-200/45">Prize pool</div>
-            </div>
-            <div className="rounded-xl border border-lime-200/18 bg-lime-300/8 px-3 py-2 text-center">
-              <div className="font-mono text-xl font-black text-lime-200">{realEntrantCount} real · {npcSlots} NPC</div>
-              <div className="text-[9px] font-black uppercase tracking-wide text-lime-200/45">Slots</div>
-            </div>
+          <div className="flex flex-col items-center gap-1.5 rounded-xl border border-yellow-400/15 bg-yellow-400/5 py-4 px-2">
+            <div className="pixel text-base text-white/60 uppercase tracking-widest">Prize pool</div>
+            <div className="pixel text-2xl leading-none text-yellow-300">{shortNumber(racePool)}</div>
+            <div className="pixel text-base text-yellow-400/70">$TOAD</div>
           </div>
         </div>
-        <div className="mt-2 text-xs text-white/30">Every 30 min — top 3 win tokens · NPC prizes roll back to pool</div>
+        <div className="pixel text-base text-white/45 text-center mt-3">
+          {realEntrantCount} real · {npcSlots} npc · every 30 min
+        </div>
       </div>
 
-      {/* Zone 2 — Frog picker */}
+      {/* Zone 2 — Prize breakdown (right below the counters) */}
       <div className="game-panel p-4">
-        <div className="text-xs font-black uppercase tracking-[0.16em] text-white/40 mb-3">Pick your racer</div>
-        {player.toads.length > 0 ? (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {player.toads.map(toad => (
-              <FrogPickerCard
-                key={toad.id}
-                toad={toad}
-                selected={toad.id === selectedToadId}
-                onSelect={() => setSelectedToadId(toad.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2 py-6 text-center">
-            <div className="text-4xl">🥚</div>
-            <div className="text-sm font-black text-white/40">No frogs yet — go hatch one first!</div>
-          </div>
-        )}
+        <div className="pixel text-base text-white/60 uppercase tracking-widest text-center mb-3">Prize breakdown</div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { medal: "🥇", share: "40%" },
+            { medal: "🥈", share: "25%" },
+            { medal: "🥉", share: "15%" },
+          ].map(t => (
+            <div key={t.share} className="rounded-xl border border-yellow-200/14 bg-yellow-300/6 p-3 text-center">
+              <div className="text-2xl">{t.medal}</div>
+              <div className="pixel text-base text-yellow-300 mt-1.5">{t.share}</div>
+              <div className="pixel text-base text-yellow-100/45 mt-1">of pool</div>
+            </div>
+          ))}
+        </div>
+        <div className="pixel text-base text-white/45 text-center mt-3">
+          Rank 4+ gets 2 🪰 · NPC prizes return to pool
+        </div>
       </div>
 
-      {/* Zone 3 — Race Potential panel */}
-      {selectedToad && <RacePotentialPanel toad={selectedToad} />}
+      {/* Zone 3 — Auto-selected frog racer */}
+      {selectedToad ? (() => {
+        const pot = racePotential(selectedToad);
+        const bars = [
+          { label: "Luck",  value: Math.round((selectedToad.luck / 100) * 15), max: 15, color: "bg-yellow-400" },
+          { label: "Level", value: Math.round(Math.min((selectedToad.level - 1) * 1.0, 12)), max: 12, color: "bg-purple-400" },
+          { label: "Stats", value: Math.round(selectedToad.speed * 0.025 + selectedToad.stamina * 0.02 + selectedToad.consistency * 0.015), max: 12, color: "bg-sky-400" },
+        ];
+        return (
+          <div className="game-panel p-4">
+            {/* Header: image + name as one combined block */}
+            <div className={`flex items-center gap-4 rounded-xl border-2 p-3 mb-4 ${toadTone[selectedToad.kind]}`}>
+              <img
+                src={assetPaths.toads[selectedToad.kind]}
+                alt={selectedToad.name}
+                className="h-20 w-20 shrink-0 object-contain"
+              />
+              <div className="min-w-0">
+                <div className="pixel text-sm text-white/45 mb-1.5">Auto selected</div>
+                <div className="pixel text-base text-white font-black leading-snug truncate">{selectedToad.name}</div>
+                <div className="pixel text-sm text-white/55 mt-1">{selectedToad.rarity} · Lv {selectedToad.level}</div>
+                <div className="pixel text-xl text-yellow-300 mt-2">
+                  +{pot.total} <span className="pixel text-sm text-white/45">pts bonus</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Stat bars */}
+            <div className="space-y-2">
+              {bars.map(b => (
+                <div key={b.label} className="flex items-center gap-2">
+                  <span className="pixel text-sm w-12 shrink-0 text-white/55">{b.label}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <div className={`h-full rounded-full ${b.color}`} style={{ width: `${Math.min(100, Math.round((b.value / b.max) * 100))}%` }} />
+                  </div>
+                  <span className="pixel text-sm w-8 shrink-0 text-right text-white/75">+{b.value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Note */}
+            <div className="mt-3 rounded-lg border border-yellow-400/20 bg-yellow-400/6 px-3 py-2 text-center">
+              <span className="pixel text-sm text-white/65">75% luck · any frog can win</span>
+            </div>
+          </div>
+        );
+      })() : (
+        <div className="game-panel p-6 flex flex-col items-center gap-3 text-center">
+          <div className="text-4xl">🥚</div>
+          <div className="pixel text-sm text-white/40 leading-loose">No frogs yet<br/>go hatch one!</div>
+        </div>
+      )}
 
       {/* Zone 4 — Enter button */}
       <button
         onClick={() => selectedToad && enterRaceEventWithToad(selectedToad.id)}
         disabled={!canEnter || busy}
-        className={`w-full rounded-xl py-4 text-base font-black transition-all disabled:opacity-50 ${enterButtonStyle}`}
+        className={`pixel text-[13px] w-full rounded-xl py-4 transition-all disabled:opacity-50 ${enterButtonStyle}`}
       >
         {enterButtonLabel()}
       </button>
 
-      {/* Prize structure */}
-      <div className="game-panel p-4">
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { medal: "🥇", label: "1st place", share: "40%" },
-            { medal: "🥈", label: "2nd place", share: "25%" },
-            { medal: "🥉", label: "3rd place", share: "15%" },
-          ].map(t => (
-            <div key={t.label} className="rounded-xl border border-yellow-200/14 bg-yellow-300/6 p-2.5 text-center">
-              <div className="text-xl">{t.medal}</div>
-              <div className="mt-1 font-mono text-lg font-black text-yellow-200">{t.share}</div>
-              <div className="text-[9px] text-yellow-100/40">of pool</div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-2 text-center text-[10px] text-white/30">Rank 4+ get 2 🪰 flies · NPC wins roll back to pool</div>
-      </div>
-
-      {/* Zone 5 — Last result with full standings */}
+      {/* Zone 5 — Last race result */}
       {result && (
         <div className="game-panel p-4">
-          <div className="text-xs font-black uppercase tracking-[0.16em] text-white/40 mb-3">Last race result</div>
-
-          {/* Player result boxes */}
+          <div className="pixel text-base text-white/60 uppercase tracking-widest mb-3 text-center">Last race result</div>
           <div className="grid grid-cols-3 gap-2">
             <div className={`rounded-xl border p-3 text-center ${rankBorder(result.rank)}`}>
-              <div className={`font-mono text-3xl font-black ${result.rank === 1 ? "text-yellow-300" : result.rank <= 3 ? "text-white" : "text-white/60"}`}>
+              <div className={`pixel text-xl ${result.rank === 1 ? "text-yellow-300" : result.rank <= 3 ? "text-white" : "text-white/60"}`}>
                 #{result.rank}
               </div>
-              <div className="mt-0.5 text-[9px] font-black uppercase tracking-wide text-white/35">Rank</div>
+              <div className="pixel text-base text-white/60 mt-1">rank</div>
             </div>
-            <div className="rounded-xl border border-lime-200/16 bg-lime-300/6 p-3 text-center">
-              <div className="font-mono text-3xl font-black text-lime-200">{shortNumber(result.score)}</div>
-              <div className="mt-0.5 text-[9px] font-black uppercase tracking-wide text-lime-200/45">Score</div>
+            <div className="rounded-xl border border-yellow-300/20 bg-yellow-300/8 p-3 text-center">
+              <div className="pixel text-xl text-yellow-200">{shortNumber(result.score)}</div>
+              <div className="pixel text-base text-yellow-200/60 mt-1">score</div>
             </div>
-            <div className="rounded-xl border border-yellow-200/16 bg-yellow-300/6 p-3 text-center">
-              <div className="font-mono text-2xl font-black text-yellow-200">
-                {result.tokensAwarded > 0 ? shortNumber(result.tokensAwarded) : `+${result.fliesAwarded} 🪰`}
+            <div className="rounded-xl border border-yellow-200/20 bg-yellow-300/8 p-3 text-center">
+              <div className="pixel text-lg text-yellow-200">
+                {result.tokensAwarded > 0 ? shortNumber(result.tokensAwarded) : `+${result.fliesAwarded}`}
               </div>
-              <div className="mt-0.5 text-[9px] font-black uppercase tracking-wide text-yellow-200/45">
-                {result.tokensAwarded > 0 ? "Tokens" : "Flies"}
+              <div className="pixel text-base text-yellow-200/60 mt-1">
+                {result.tokensAwarded > 0 ? "tokens" : "flies 🪰"}
               </div>
             </div>
           </div>
-
           {result.toadName && (
-            <div className="mt-2 text-center text-[10px] text-white/35">
-              Raced with <span className="font-bold text-white/55">{result.toadName}</span>
+            <div className="pixel text-base text-white/50 text-center mt-3">
+              Raced with {result.toadName}
             </div>
           )}
         </div>
@@ -949,94 +858,95 @@ function FrogsTab({
   canSprint: boolean;
 }) {
   const statBarColor: Record<string, string> = {
-    SPD: "bg-sky-400",
-    STA: "bg-lime-400",
-    LCK: "bg-yellow-400",
-    CON: "bg-purple-400",
+    "Speed":    "bg-sky-400",
+    "Stamina":  "bg-lime-400",
+    "Luck":     "bg-yellow-400",
+    "Consist.": "bg-purple-400",
   };
 
   return (
-    <section className="grid grid-cols-2 gap-3">
+    <section className="grid grid-cols-2 gap-2.5">
       {player.toads.map(toad => {
         const xpNeeded = toad.level * 25;
         const xpPct = Math.min(100, Math.round((toad.xp / xpNeeded) * 100));
         const stats: [string, number][] = [
-          ["SPD", toad.speed],
-          ["STA", toad.stamina],
-          ["LCK", toad.luck],
-          ["CON", toad.consistency],
+          ["Speed",    toad.speed],
+          ["Stamina",  toad.stamina],
+          ["Luck",     toad.luck],
+          ["Consist.", toad.consistency],
         ];
         return (
           <div
             key={toad.id}
-            className={`flex flex-col overflow-hidden rounded-2xl border transition-all ${toadTone[toad.kind]}`}
+            className={`flex flex-col overflow-hidden rounded-xl border border-l-2 ${toadAccent[toad.kind]} border-white/8 bg-black/22 transition-all`}
           >
             {/* Image area */}
-            <div className="relative flex items-center justify-center py-4">
+            <div className="relative flex items-center justify-center py-3">
               <img
                 src={assetPaths.toads[toad.kind]}
                 alt={toad.name}
-                className={`h-28 w-28 object-contain transition-all duration-300 ${toad.active ? "" : "grayscale opacity-45"}`}
+                className={`h-24 w-24 object-contain transition-all duration-300 ${toad.active ? "" : "grayscale opacity-40"}`}
               />
-              <span className="absolute left-2 top-2 rounded-full bg-black/50 px-2 py-0.5 text-[9px] font-black text-white/70 backdrop-blur-sm">
+              <span className="pixel absolute left-1.5 top-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[9px] text-white/65">
                 Lv {toad.level}
               </span>
               {toad.active && (
-                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-lime-300 px-2 py-0.5 text-[8px] font-black text-emerald-950">
-                  ⚡ Active
+                <span className="pixel absolute right-1.5 top-1.5 rounded bg-yellow-400 px-1.5 py-0.5 text-[9px] font-black text-black shadow-[0_0_8px_rgba(255,215,0,0.5)]">
+                  Active
                 </span>
               )}
             </div>
 
             {/* Info */}
-            <div className="flex flex-1 flex-col gap-2.5 px-3 pb-3">
-              <div>
-                <div className="truncate text-sm font-black text-white">{toad.name}</div>
-                <div className="mt-0.5 text-[10px] text-white/45">{toad.rarity}</div>
+            <div className="flex flex-1 flex-col gap-2 px-2.5 pb-2.5">
+              <div className="text-center">
+                <div className="pixel truncate text-sm font-black text-white">{toad.name}</div>
+                <div className="pixel mt-0.5 text-sm text-white/60">{toad.rarity} · Lv {toad.level}</div>
               </div>
 
-              {/* XP */}
+              {/* XP to next level */}
               <div>
-                <div className="mb-1 flex justify-between text-[9px] text-white/35">
-                  <span>XP {toad.xp}/{xpNeeded}</span>
-                  <span>→ {toad.level + 1}</span>
+                <div className="pixel mb-1 flex justify-between text-[9px] text-white/55">
+                  <span>{toad.xp}/{xpNeeded} XP</span>
+                  <span>→Lv{toad.level + 1}</span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-lime-300 transition-all" style={{ width: `${xpPct}%` }} />
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/12">
+                  <div className="h-full rounded-full bg-yellow-400 transition-all" style={{ width: `${xpPct}%` }} />
                 </div>
               </div>
 
               {/* Stats */}
               <div className="space-y-1.5">
                 {stats.map(([k, v]) => (
-                  <div key={k} className="flex items-center gap-2">
-                    <span className="w-6 shrink-0 text-[9px] font-black text-white/35">{k}</span>
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/8">
+                  <div key={k} className="flex items-center gap-1.5">
+                    <span className="pixel w-16 shrink-0 text-[9px] text-white/55">{k}</span>
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
                       <div className={`h-full rounded-full ${statBarColor[k]}`} style={{ width: `${Math.min(100, v)}%` }} />
                     </div>
-                    <span className="w-5 shrink-0 text-right text-[9px] font-black text-white/55">{v}</span>
+                    <span className="pixel w-5 shrink-0 text-right text-[9px] font-bold text-white/75">{v}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-2 border-t border-white/8 px-3 py-2.5">
+            <div className="flex items-center gap-1.5 border-t border-white/8 px-2.5 py-2.5">
               <button
                 onClick={() => toad.active ? deactivateToad(toad.id) : activateToad(toad.id)}
                 disabled={busy}
-                className={`flex-1 rounded-lg py-2 text-[10px] font-black uppercase tracking-[0.1em] transition-all disabled:opacity-50 ${
+                className={`pixel flex-1 rounded py-2 text-sm font-black transition-all disabled:opacity-50 ${
                   toad.active
-                    ? "bg-lime-300/20 text-lime-200 hover:bg-lime-300/30"
-                    : "bg-white/6 text-white/45 hover:bg-white/12"
+                    ? "bg-yellow-400/18 text-yellow-200 hover:bg-yellow-400/28"
+                    : "bg-white/6 text-white/65 hover:bg-white/12"
                 }`}
               >
-                {toad.active ? "⏸ Pause" : "Activate"}
+                {toad.active ? "⏸ Pause" : "▶ Activate"}
               </button>
               <button
                 onClick={() => sprintWithToad(toad.id)}
                 disabled={!canSprint}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-lime-300 text-base text-emerald-950 shadow-[0_0_14px_rgba(190,242,100,0.4)] hover:bg-lime-200 active:scale-90 disabled:opacity-35 transition-all"
+                title="Sprint: spend 2 flies for instant jump"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-sm text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none disabled:opacity-35 transition-all"
               >
                 🪰
               </button>
@@ -1045,9 +955,9 @@ function FrogsTab({
         );
       })}
       {player.toads.length === 0 && (
-        <div className="col-span-2 game-panel flex flex-col items-center gap-3 py-12 text-center">
-          <div className="text-6xl">🥚</div>
-          <div className="text-sm font-black text-white/40">No frogs yet — go hatch one!</div>
+        <div className="col-span-2 flex flex-col items-center gap-3 py-12 text-center">
+          <div className="text-5xl opacity-40">🥚</div>
+          <div className="pixel text-sm text-white/40">No frogs yet — go hatch one!</div>
         </div>
       )}
     </section>
@@ -1085,92 +995,122 @@ function HatchTab({
     setPhase("idle");
   }
 
+  const rarityBannerStyle = (rarity: string) => {
+    switch (rarity) {
+      case "Legendary": return "border-yellow-400/40 bg-yellow-400/10 text-yellow-300";
+      case "Epic":      return "border-purple-400/40 bg-purple-400/10 text-purple-300";
+      case "Rare":      return "border-sky-400/40 bg-sky-400/10 text-sky-300";
+      default:          return "border-white/15 bg-white/5 text-white/50";
+    }
+  };
+
   return (
-    <section className="game-panel relative overflow-hidden">
-      <div className="absolute inset-0 opacity-15" style={{ backgroundImage: `url(${assetPaths.forest})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-      <div className="relative z-10 flex min-h-[560px] flex-col items-center justify-center gap-6 px-4 py-10 text-center">
+    <section className="game-panel">
+      <div className="flex min-h-[560px] flex-col items-center justify-center gap-5 px-4 py-10 text-center">
 
         {phase === "idle" && (
           <>
-            <div className="flex h-64 w-64 items-center justify-center text-[120px] drop-shadow-[0_30px_28px_rgba(0,0,0,0.5)]">
-              🥚
+            {/* Arcade marquee */}
+            <div className="pixel text-base text-yellow-400/70 uppercase tracking-widest rounded-lg border border-yellow-400/20 bg-yellow-400/5 px-4 py-2">
+              ▶ INSERT FLIES TO HATCH ◀
             </div>
+
+            {/* Floating glowing egg */}
+            <div className="relative flex items-center justify-center">
+              <div className="egg-aura absolute h-44 w-44 rounded-full bg-yellow-300/20 blur-2xl" />
+              <div className="egg-float relative z-10 flex h-48 w-48 items-center justify-center text-[96px] drop-shadow-[0_8px_32px_rgba(255,215,0,0.40)]">
+                🥚
+              </div>
+            </div>
+
+            {/* Title */}
             <div>
-              <h2 className="text-4xl font-black text-white">Open a Toad Egg</h2>
-              <p className="mt-2 text-sm text-white/50">Hatch frogs, duplicate XP, or small fly returns.</p>
+              <h2 className="pixel text-lg text-yellow-300">TOAD EGG</h2>
+              <p className="pixel text-base text-white/50 mt-3 leading-loose">HATCH · GAIN XP · WIN FLIES</p>
             </div>
+
+            {/* Open button */}
             <button
               onClick={handleOpen}
               disabled={busy || player.flies < ACTION_COSTS.openEgg}
-              className="rounded-2xl bg-amber-300 px-10 py-4 text-base font-black text-emerald-950 shadow-[0_0_40px_rgba(251,191,36,0.3)] hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-40"
+              className="pixel text-[13px] rounded-xl bg-yellow-400 px-10 py-4 text-black shadow-[0_5px_0_rgba(0,0,0,0.55),0_0_30px_rgba(255,215,0,0.40)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-[0_3px_0_rgba(0,0,0,0.5)] transition-all disabled:opacity-40"
             >
-              Open Egg · {ACTION_COSTS.openEgg} 🪰
+              OPEN EGG · {ACTION_COSTS.openEgg} 🪰
             </button>
-            <div className="flex flex-wrap justify-center gap-2">
-              {[
-                ["Swamp Toad",     "58%",  "bg-lime-300/15   border-lime-200/30   text-lime-100"],
-                ["Poison Dart",    "20%",  "bg-sky-300/15    border-sky-200/30    text-sky-100"],
-                ["Crystal Frog",   "14%",  "bg-cyan-300/15   border-cyan-200/30   text-cyan-100"],
-                ["Shadow Toad",    "6%",   "bg-purple-300/15 border-purple-200/30 text-purple-100"],
-                ["Golden Emperor", "2%",   "bg-yellow-300/15 border-yellow-200/30 text-yellow-100"],
-                ["Void Ancient",   "V2 ✦", "bg-rose-300/15   border-rose-200/30   text-rose-100"],
-              ].map(([name, chance, cls]) => (
-                <div key={name} className={`rounded-full border px-4 py-1.5 text-xs font-black ${cls}`}>
-                  {name} <span className="opacity-55">·</span> {chance}
-                </div>
-              ))}
+
+            {/* Drop rate table */}
+            <div className="w-full max-w-xs">
+              <div className="pixel text-base text-white/60 uppercase tracking-widest text-center mb-3">Drop rates</div>
+              <div className="space-y-1.5">
+                {[
+                  { name: "Swamp Toad",     chance: "58%", color: "text-lime-300",   row: "border-lime-300/10 bg-lime-300/4" },
+                  { name: "Poison Dart",    chance: "20%", color: "text-sky-300",    row: "border-sky-300/10 bg-sky-300/4" },
+                  { name: "Crystal Frog",   chance: "14%", color: "text-cyan-300",   row: "border-cyan-300/10 bg-cyan-300/4" },
+                  { name: "Shadow Toad",    chance: "6%",  color: "text-purple-300", row: "border-purple-300/10 bg-purple-300/4" },
+                  { name: "Golden Emperor", chance: "2%",  color: "text-yellow-300", row: "border-yellow-400/20 bg-yellow-400/8" },
+                  { name: "Void Ancient",   chance: "V2",  color: "text-white/25",   row: "border-white/8 bg-white/3" },
+                ].map(r => (
+                  <div key={r.name} className={`flex items-center justify-between rounded-lg border px-3 py-2 ${r.row}`}>
+                    <span className={`pixel text-base ${r.color}`}>{r.name}</span>
+                    <span className={`pixel text-base font-bold ${r.color}`}>{r.chance}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         )}
 
         {phase === "opening" && (
           <>
-            <div className="egg-opening flex h-64 w-64 items-center justify-center text-[120px] drop-shadow-[0_30px_28px_rgba(0,0,0,0.5)]">
-              🥚
+            <div className="relative flex items-center justify-center">
+              <div className="egg-aura absolute h-56 w-56 rounded-full bg-yellow-300/25 blur-3xl" />
+              <div className="egg-opening relative z-10 flex h-64 w-64 items-center justify-center text-[120px] drop-shadow-[0_0_48px_rgba(255,215,0,0.55)]">
+                🥚
+              </div>
             </div>
-            <div className="animate-pulse text-lg font-black text-white/60">Opening...</div>
+            <div className="pixel animate-pulse text-[13px] text-yellow-300 tracking-widest">HATCHING...</div>
           </>
         )}
 
         {phase === "revealed" && eggResult && (
           <>
+            {/* Rarity banner */}
+            <div className={`pixel text-base uppercase tracking-widest rounded-lg border px-4 py-2 ${rarityBannerStyle(eggResult.toad.rarity)}`}>
+              {eggResult.isNew ? "✨ NEW FROG — " : "⟳ DUPLICATE — "}{eggResult.toad.rarity.toUpperCase()}
+            </div>
+
+            {/* Frog reveal */}
             <div className="frog-reveal">
               <img
                 src={assetPaths.toads[eggResult.toad.kind]}
                 alt={eggResult.toad.name}
-                className="mx-auto h-60 w-60 object-contain"
+                className="mx-auto h-56 w-56 object-contain"
                 style={{ filter: rarityGlowFilter[eggResult.toad.rarity] ?? "none" }}
               />
             </div>
-            <div>
-              {eggResult.isNew ? (
-                <div className="mb-1 text-2xl font-black text-lime-300">✨ NEW FROG!</div>
-              ) : (
-                <div className="mb-1 text-2xl font-black text-white/50">Duplicate</div>
-              )}
-              <div className="text-3xl font-black text-white">{eggResult.toad.name}</div>
-              <div className="mt-2 flex justify-center">
-                <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-black uppercase tracking-wider text-white/60">
-                  {eggResult.toad.rarity}
-                </span>
-              </div>
+
+            {/* Name + XP */}
+            <div className="text-center">
+              <div className="pixel text-base text-white leading-loose">{eggResult.toad.name}</div>
               {!eggResult.isNew && (
-                <div className="mt-3 text-sm text-white/50">+XP gained &nbsp;·&nbsp; +{eggResult.bonusFlies} 🪰 returned</div>
+                <div className="pixel text-base text-white/50 mt-2">+XP gained · +{eggResult.bonusFlies} 🪰 returned</div>
               )}
             </div>
+
+            {/* Action buttons */}
             <div className="flex gap-3">
               <button
                 onClick={handleClear}
                 disabled={busy}
-                className="rounded-xl bg-amber-300 px-7 py-3 text-sm font-black text-emerald-950 hover:bg-amber-200 active:scale-95 transition-all disabled:opacity-40"
+                className="pixel text-[13px] rounded-xl bg-yellow-400 px-6 py-3.5 text-black shadow-[0_4px_0_rgba(0,0,0,0.45),0_0_24px_rgba(255,215,0,0.35)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-40"
               >
-                Open Another
+                OPEN AGAIN
               </button>
               <button
                 onClick={() => { handleClear(); goToFrogs(); }}
-                className="rounded-xl border border-white/15 bg-white/8 px-7 py-3 text-sm font-black text-white/70 hover:bg-white/14 transition-colors"
+                className="pixel text-[13px] rounded-xl border border-white/15 bg-white/8 px-6 py-3.5 text-white/70 hover:bg-white/14 transition-colors"
               >
-                Go to Frogs →
+                MY FROGS
               </button>
             </div>
           </>
@@ -1188,163 +1128,208 @@ function RewardsTab({ season, player }: { season: SeasonStats | null; player: Pl
   const totalPaid = season?.rewardLedger?.totalTokenRewardsPaid ?? 0;
 
   return (
-    <section className="space-y-3">
-      <div className="game-panel p-5">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="text-5xl">💧</div>
-          <div>
-            <div className="text-xs font-black uppercase tracking-[0.18em] text-lime-200/60">Auto-distribution</div>
-            <h2 className="mt-1 text-2xl font-black text-white">Tokens flow to active jumpers</h2>
-            <p className="mx-auto mt-2 max-w-lg text-sm text-white/55">
-              Every 24h, 100% of Pump.fun creator rewards distribute proportionally to all wallets with active jumping frogs. No claiming required — keep frogs jumping to earn.
-            </p>
-          </div>
+    <section className="space-y-4 game-panel p-4">
+
+      {/* How rewards work */}
+      <div>
+        <div className="pixel text-base text-white/55 uppercase tracking-widest text-center mb-3">How rewards work</div>
+        <div className="rounded-xl border border-yellow-400/18 bg-yellow-400/5 p-4 text-center space-y-2">
+          <p className="pixel text-sm text-white/65 leading-loose">
+            Every 24h, 100% of Pump.fun creator fees are distributed to all wallets with active jumping frogs.
+          </p>
+          <p className="pixel text-sm text-yellow-300 leading-loose">
+            No claiming needed — just keep frogs jumping.
+          </p>
         </div>
-        {player.dailyJumpScore > 0 && (
-          <div className="mt-5 grid grid-cols-3 gap-2">
-            <div className="rounded-xl border border-lime-200/20 bg-lime-300/10 p-3 text-center">
-              <div className="text-[10px] font-black uppercase tracking-[0.12em] text-lime-100/55">Your daily score</div>
-              <div className="mt-1 font-mono text-xl font-black text-lime-100">{shortNumber(player.dailyJumpScore)}</div>
-            </div>
-            <div className="rounded-xl border border-lime-200/20 bg-lime-300/10 p-3 text-center">
-              <div className="text-[10px] font-black uppercase tracking-[0.12em] text-lime-100/55">Your pool share</div>
-              <div className="mt-1 font-mono text-xl font-black text-lime-100">{(playerShare * 100).toFixed(2)}%</div>
-            </div>
-            <div className="rounded-xl border border-lime-200/20 bg-lime-300/10 p-3 text-center">
-              <div className="text-[10px] font-black uppercase tracking-[0.12em] text-lime-100/55">Est. daily earn</div>
-              <div className="mt-1 font-mono text-xl font-black text-lime-100">{shortNumber(dailyPool * playerShare)}</div>
-            </div>
-          </div>
-        )}
       </div>
 
-      <div className="game-panel p-4">
-        <div className="text-center">
-          <div className="text-xs font-black uppercase tracking-[0.18em] text-white/40">Treasury</div>
-          <h3 className="mt-1 text-2xl font-black text-white">Live pools</h3>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl border border-lime-200/22 bg-lime-300/8 p-4 text-center">
-            <div className="text-3xl">🏊</div>
-            <div className="mt-2 font-mono text-3xl font-black text-lime-100">{shortNumber(dailyPool)}</div>
-            <div className="mt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-lime-100/55">Daily active pool</div>
-            <p className="mt-2 text-xs text-lime-100/50">Splits every 24h among active jumping frogs, proportional to score.</p>
-          </div>
-          <div className="rounded-2xl border border-sky-200/22 bg-sky-300/8 p-4 text-center">
-            <div className="text-3xl">🪙</div>
-            <div className="mt-2 font-mono text-3xl font-black text-sky-100">{shortNumber(season?.projectLedger.creatorRewardsRecorded ?? 0)}</div>
-            <div className="mt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-sky-100/55">Creator fees received</div>
-            <p className="mt-2 text-xs text-sky-100/50">Total Pump.fun creator fees credited to the active pool since launch.</p>
-          </div>
-          <div className="rounded-2xl border border-white/12 bg-white/5 p-4 text-center">
-            <div className="text-3xl">✅</div>
-            <div className="mt-2 font-mono text-3xl font-black text-white/80">{shortNumber(totalPaid)}</div>
-            <div className="mt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Rewards paid out</div>
-            <p className="mt-2 text-xs text-white/35">Cumulative token distributions to players since launch.</p>
-          </div>
-          <div className="rounded-2xl border border-white/12 bg-white/5 p-4 text-center">
-            <div className="text-3xl">🐸</div>
-            <div className="mt-2 font-mono text-3xl font-black text-white/80">{season?.activePlayers ?? 0}</div>
-            <div className="mt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/45">Jumpers today</div>
-            <p className="mt-2 text-xs text-white/35">Players with at least one active frog competing for today's pool.</p>
+      {/* Your estimated share */}
+      {player.dailyJumpScore > 0 && (
+        <div>
+          <div className="pixel text-base text-white/55 uppercase tracking-widest text-center mb-3">Your estimated share</div>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Your score today",    value: shortNumber(player.dailyJumpScore),               color: "text-yellow-300" },
+              { label: "Share of pool",       value: `${(playerShare * 100).toFixed(2)}%`,             color: "text-yellow-300" },
+              { label: "Estimated daily earn",value: `${shortNumber(dailyPool * playerShare)} ${JUMP_FROGS_TOKEN_SYMBOL}`, color: "text-white/80" },
+              { label: "Total daily pool",    value: shortNumber(dailyPool),                           color: "text-white/80" },
+            ].map(stat => (
+              <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
+                <div className="pixel text-sm text-white/45 leading-loose">{stat.label}</div>
+                <div className={`pixel text-base font-black ${stat.color}`}>{stat.value}</div>
+              </div>
+            ))}
           </div>
         </div>
-        <div className="mt-3 rounded-xl border border-lime-200/16 bg-lime-300/6 px-4 py-3 text-center text-xs text-lime-100/60">
-          To increase your share: activate more frogs, hold {RUNNING_TOADS_TOKEN_SYMBOL} for a score multiplier (up to 3×), or hatch rarer frogs with higher base stats.
+      )}
+
+      {/* Treasury overview */}
+      <div>
+        <div className="pixel text-base text-white/55 uppercase tracking-widest text-center mb-3">Treasury overview</div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: "Today's reward pool",    value: shortNumber(dailyPool) },
+            { label: "Creator fees received",  value: shortNumber(season?.projectLedger.creatorRewardsRecorded ?? 0) },
+            { label: "Total paid to players",  value: shortNumber(totalPaid) },
+            { label: "Active jumpers today",   value: String(season?.activePlayers ?? 0) },
+          ].map(stat => (
+            <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
+              <div className="pixel text-sm text-white/45 leading-loose">{stat.label}</div>
+              <div className="pixel text-base font-black text-yellow-300">{stat.value}</div>
+            </div>
+          ))}
         </div>
       </div>
+
+      {/* Tip */}
+      <div className="rounded-xl border border-yellow-400/18 bg-yellow-400/5 p-4 text-center">
+        <p className="pixel text-sm text-white/55 leading-loose">
+          Want a bigger share? Activate more frogs, hold {JUMP_FROGS_TOKEN_SYMBOL} tokens for a 3× score boost, or hatch rarer frogs.
+        </p>
+      </div>
+
     </section>
   );
 }
 
 function LeaderboardTab({ leaderboard, season }: { leaderboard: LeaderboardEntry[]; season: SeasonStats | null }) {
+  const top3 = leaderboard.slice(0, 3);
+  const rest  = leaderboard.slice(3);
+
+  const podiumMedal  = (i: number) => ["🥇", "🥈", "🥉"][i];
+  const podiumBorder = (i: number) => [
+    "border-yellow-300/40 bg-yellow-300/8 shadow-[0_0_18px_rgba(255,215,0,0.12)]",
+    "border-white/18 bg-white/5",
+    "border-amber-600/28 bg-amber-700/6",
+  ][i];
+  const podiumScore  = (i: number) => ["text-yellow-300", "text-white/75", "text-amber-400"][i];
+
   return (
-    <section className="game-panel p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-xs font-black uppercase tracking-[0.18em] text-white/40">Leaderboard</div>
-          <h2 className="mt-1 text-3xl font-black text-white">Today's top jumpers</h2>
-        </div>
-        <div className="flex gap-2">
-          <ResourcePill label="Players" value={season?.activePlayers ?? 0} tone="sky" />
-          <ResourcePill label="Jumps" value={shortNumber(season?.totalJumps ?? 0)} tone="lime" />
+    <section className="game-panel p-4 space-y-4">
+
+      {/* Header */}
+      <div className="text-center">
+        <div className="pixel text-sm text-white/40 uppercase tracking-widest mb-2">Daily rankings</div>
+        <h2 className="pixel text-xl text-yellow-300">Top Jumpers</h2>
+        <div className="pixel text-sm text-white/40 mt-2">
+          {season?.activePlayers ?? 0} players · {shortNumber(season?.totalJumps ?? 0)} jumps today
         </div>
       </div>
-      <div className="mt-4 grid gap-2">
-        {leaderboard.length ? (
-          leaderboard.map((entry, index) => {
-            const boost = tokenBoost(entry.tokenBalance);
-            const medalCls = index === 0
-              ? "bg-yellow-300/20 text-yellow-200"
-              : index === 1
-              ? "bg-white/12 text-white/70"
-              : index === 2
-              ? "bg-amber-300/15 text-amber-200"
-              : "bg-lime-300/10 text-lime-100/60";
-            return (
-              <div key={`${entry.wallet}-${index}`} className="grid grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-white/10 bg-black/24 px-3 py-3">
-                <div className={`grid h-10 w-10 place-items-center rounded-lg font-black ${medalCls}`}>{index + 1}</div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate font-bold text-white/88">{entry.wallet}</span>
-                    <span className={boost.cls}>{boost.mult}</span>
-                  </div>
-                  <div className="mt-0.5 truncate text-xs text-white/42">
-                    🐸 {entry.activeFrogs}/{entry.totalFrogs} jumping
-                    {entry.topToad ? ` · ${entry.topToad.name} Lv ${entry.topToad.level}` : ""}
-                  </div>
+
+      {leaderboard.length ? (
+        <>
+          {/* Podium — top 3 */}
+          <div className="grid grid-cols-3 gap-2">
+            {top3.map((entry, i) => {
+              const boost = tokenBoost(entry.tokenBalance);
+              return (
+                <div key={entry.wallet} className={`rounded-xl border p-3 text-center ${podiumBorder(i)}`}>
+                  <div className="text-2xl mb-1">{podiumMedal(i)}</div>
+                  <div className={`pixel text-lg font-black ${podiumScore(i)}`}>{shortNumber(entry.dailyJumpScore)}</div>
+                  <div className="pixel text-sm text-white/45 mt-1 truncate">{entry.wallet}</div>
+                  {boost.mult !== "1×" && (
+                    <span className={`mt-1.5 inline-block ${boost.cls}`}>{boost.mult}</span>
+                  )}
+                  <div className="pixel text-sm text-white/35 mt-1">{entry.activeFrogs} frogs</div>
+                  {entry.topToad && (
+                    <div className="pixel text-sm text-white/30 mt-0.5 truncate">{entry.topToad.name}</div>
+                  )}
                 </div>
-                <div className="text-right">
-                  <div className="font-mono text-xl font-black text-sky-200">{shortNumber(entry.dailyJumpScore)}</div>
-                  <div className="text-[10px] text-white/35">today</div>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <div className="rounded-xl border border-white/10 bg-black/24 p-4 text-sm text-white/45">No jumps today yet — activate a frog to claim the top spot.</div>
-        )}
-      </div>
+              );
+            })}
+          </div>
+
+          {/* Ranks 4+ */}
+          {rest.length > 0 && (
+            <div className="space-y-1.5">
+              {rest.map((entry, i) => {
+                const boost = tokenBoost(entry.tokenBalance);
+                return (
+                  <div key={entry.wallet} className="flex items-center gap-3 rounded-lg border border-white/6 bg-white/3 px-3 py-2.5">
+                    <span className="pixel text-sm text-white/28 w-7 shrink-0">#{i + 4}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="pixel text-sm text-white/65 truncate">{entry.wallet}</span>
+                        {boost.mult !== "1×" && <span className={`shrink-0 ${boost.cls}`}>{boost.mult}</span>}
+                      </div>
+                      <div className="pixel text-sm text-white/35 mt-0.5">{entry.activeFrogs}/{entry.totalFrogs} frogs jumping</div>
+                    </div>
+                    <span className="pixel text-sm font-black text-yellow-300 shrink-0">{shortNumber(entry.dailyJumpScore)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="py-10 flex flex-col items-center gap-4 text-center">
+          <div className="text-5xl">🏆</div>
+          <div className="pixel text-base text-yellow-300">Be #1 today!</div>
+          <div className="pixel text-sm text-white/40 leading-loose">No jumps recorded yet.<br/>Activate a frog and claim the top spot.</div>
+        </div>
+      )}
     </section>
   );
 }
 
 function SeasonsTab({ currentSeasonId }: { currentSeasonId: string }) {
   const features = [
-    { icon: "🥇", title: "Weekly Prize Pool", desc: "Top jumpers share a token prize every Sunday based on season score." },
-    { icon: "🐸✨", title: "Golden Toad Drop", desc: "Ultra-rare Legendary at 3× jump speed and maxed stats." },
-    { icon: "🔥", title: "Token Burn Events", desc: "Portion of creator fees permanently burned, reducing supply." },
-    { icon: "🏪", title: "Frog Marketplace", desc: "Trade frogs with other players for SOL or tokens." },
-    { icon: "🎬", title: "Full Race Animation", desc: "Real-time animated race mode with live rival tracking." },
-    { icon: "🔐", title: "Wallet Login", desc: "Sign with Phantom or Solflare — no more paste-address flow." },
-    { icon: "📊", title: "On-Chain Oracle", desc: "Treasury auto-monitors for creator fees — no manual recording." },
-    { icon: "🏆", title: "Season Archives", desc: "Full rankings, prizes, and personal records across all seasons." },
+    { icon: "🥇", title: "Weekly Prizes",   desc: "Top jumpers split token rewards every Sunday — proportional to season score." },
+    { icon: "🔥", title: "Burn Events",     desc: "Creator fees burned permanently. Fewer tokens in supply — holders benefit." },
+    { icon: "🏪", title: "Frog Market",     desc: "Trade rare frogs with other players for SOL or $TOAD." },
+    { icon: "🎬", title: "Live Races",      desc: "Real-time animated races — watch your frog sprint against rivals." },
+    { icon: "🔐", title: "Wallet Sign-in",  desc: "One-click login with Phantom or Solflare. No more copy-paste." },
+    { icon: "🏆", title: "Season Archives", desc: "Every rank, prize, and personal record preserved forever." },
   ];
 
   return (
-    <section className="space-y-4">
-      <div className="game-panel p-6 text-center">
-        <div className="inline-flex rounded-full border border-lime-200/30 bg-lime-300/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-lime-100">
-          Coming in V2
+    <section className="game-panel p-4 space-y-5">
+
+      {/* Hero */}
+      <div className="text-center space-y-3">
+        <div className="pixel text-sm text-yellow-400/65 uppercase tracking-widest">Season 1 · Pre-launch</div>
+        <h2 className="pixel text-xl text-yellow-300 leading-loose">V2 Is Loading...</h2>
+
+        <div className="rounded-xl border border-yellow-400/22 bg-yellow-400/5 p-4 text-left space-y-2">
+          <p className="pixel text-sm text-white/65 leading-loose">
+            Every jump you make <span className="text-yellow-300">right now</span> counts toward Season 1 rankings.
+          </p>
+          <p className="pixel text-sm text-white/65 leading-loose">
+            Hatch rarer frogs. Keep them active. Hold {JUMP_FROGS_TOKEN_SYMBOL} tokens to multiply your score up to <span className="text-yellow-300">3×</span>.
+          </p>
+          <p className="pixel text-sm text-yellow-300 leading-loose">
+            When V2 drops, your position is already locked in.
+          </p>
         </div>
-        <h2 className="mt-4 text-5xl font-black text-white sm:text-6xl">V2 is loading...</h2>
-        <p className="mx-auto mt-4 max-w-lg text-sm text-white/55">
-          RunningToads V2 ships major upgrades to the economy, gameplay, and social layers.
-          Jump now to build your score before the first season rankings lock in.
+
+        <div className="inline-flex items-center gap-3 rounded-lg border border-yellow-400/22 bg-yellow-400/7 px-4 py-2.5">
+          <span className="pixel text-sm text-white/45">Active season</span>
+          <span className="pixel text-sm text-yellow-300 font-black">{currentSeasonId}</span>
+        </div>
+      </div>
+
+      {/* Feature cards — 2 col grid */}
+      <div>
+        <div className="pixel text-base text-white/50 uppercase tracking-widest text-center mb-3">Coming in V2</div>
+        <div className="grid grid-cols-2 gap-2">
+          {features.map(f => (
+            <div key={f.title} className="rounded-xl border border-white/8 bg-white/3 p-3">
+              <div className="text-xl mb-2">{f.icon}</div>
+              <div className="pixel text-sm text-white/80 mb-1.5">{f.title}</div>
+              <div className="pixel text-sm text-white/40 leading-loose">{f.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div className="rounded-xl border border-yellow-400/22 bg-yellow-400/5 p-4 text-center">
+        <div className="text-3xl mb-2">🐸</div>
+        <p className="pixel text-sm text-white/60 leading-loose">
+          The best time to start jumping was yesterday.<br/>The second best time is <span className="text-yellow-300">right now</span>.
         </p>
-        <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-xl border border-yellow-200/24 bg-yellow-300/8 px-5 py-2.5 text-sm font-bold text-yellow-100">
-          Current season: {currentSeasonId}
-        </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {features.map((f) => (
-          <div key={f.title} className="game-panel p-4">
-            <div className="text-3xl">{f.icon}</div>
-            <div className="mt-3 font-black text-white">{f.title}</div>
-            <div className="mt-1 text-xs leading-relaxed text-white/50">{f.desc}</div>
-          </div>
-        ))}
-      </div>
+
     </section>
   );
 }
@@ -1364,60 +1349,82 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
     : `${Math.floor(syncAge / 3_600_000)}h ago`;
 
   return (
-    <section className="space-y-4">
-      {/* Auto-sync hero */}
-      <div className="game-panel p-6">
-        <div className="flex flex-col items-center gap-1 text-center">
-          <div className="text-xs font-black uppercase tracking-[0.18em] text-white/40">Automated · On-chain</div>
-          <h2 className="text-3xl font-black text-white">Auto-sync</h2>
-          <div className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/40">Last sync</div>
-          <div className="font-mono text-3xl font-black text-lime-300">{syncAgeText}</div>
+    <section className="space-y-3">
+
+      {/* Auto-sync panel */}
+      <div className="game-panel p-4 space-y-4">
+        <div className="text-center">
+          <div className="pixel text-sm text-white/45 uppercase tracking-widest mb-2">Automated · On-chain</div>
+          <div className="flex items-baseline justify-center gap-3">
+            <h2 className="pixel text-xl text-yellow-300">Auto-sync</h2>
+            <span className="pixel text-base text-yellow-300">{syncAgeText}</span>
+          </div>
+          <p className="pixel text-sm text-white/55 leading-loose mt-3">
+            Vercel Cron runs hourly, fetches SOL transfers to the treasury wallet, and credits 100% to the active-jumper pool — no manual steps required.
+          </p>
         </div>
-        <p className="mt-3 text-center text-sm text-white/48">Vercel Cron runs hourly, fetches every new SOL transfer to the treasury wallet, and credits 100% directly to the active-jumper pool — no manual steps.</p>
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          <StatBox label="Total syncs" value={ledger?.autoSyncCount ?? 0} />
-          <StatBox label="Jumpers today" value={dashboard?.activeJumpersToday ?? 0} />
-          <StatBox label="Total recorded" value={shortNumber(ledger?.creatorRewardsRecorded ?? 0)} />
+
+        {/* Sync stats grid */}
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: "Total syncs",     value: String(ledger?.autoSyncCount ?? 0) },
+            { label: "Jumpers today",   value: String(dashboard?.activeJumpersToday ?? 0) },
+            { label: "Total recorded",  value: shortNumber(ledger?.creatorRewardsRecorded ?? 0) },
+            { label: "Last sync",       value: syncAgeText },
+          ].map(stat => (
+            <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
+              <div className="pixel text-sm text-white/40 leading-loose">{stat.label}</div>
+              <div className="pixel text-base font-black text-yellow-300">{stat.value}</div>
+            </div>
+          ))}
         </div>
+
         {ledger?.lastProcessedSignature && (
-          <div className="mt-3 rounded-lg border border-white/10 bg-black/24 px-3 py-2">
-            <div className="text-[10px] font-black uppercase tracking-widest text-white/30">Last tx</div>
-            <div className="mt-0.5 truncate font-mono text-xs text-white/50">{ledger.lastProcessedSignature}</div>
+          <div className="text-center">
+            <div className="pixel text-sm text-white/30 mb-1">Last tx</div>
+            <div className="truncate font-mono text-sm text-white/35">{ledger.lastProcessedSignature}</div>
           </div>
         )}
+
         <button
           onClick={() => setShowManual((v) => !v)}
-          className="mt-4 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-white/40 transition-colors hover:bg-white/8"
+          className="pixel text-sm w-full rounded-lg border border-white/8 bg-white/4 px-3 py-2.5 text-white/35 transition-colors hover:bg-white/8"
         >
           {showManual ? "Hide manual override" : "Manual override ↓"}
         </button>
         {showManual && (
-          <div className="mt-2 space-y-2">
-            <input value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Amount received (SOL)" className="w-full rounded-md border border-white/10 bg-white/8 px-3 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-lime-200/70" />
-            <input value={key} onChange={(event) => setKey(event.target.value)} placeholder="Creator dashboard key" type="password" className="w-full rounded-md border border-white/10 bg-white/8 px-3 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-lime-200/70" />
-            <button onClick={() => recordCreatorRewards(Number(amount), key)} disabled={busy || !Number(amount)} className="w-full rounded-xl bg-lime-300 px-4 py-3 text-sm font-black text-emerald-950 hover:bg-lime-200 disabled:opacity-40">
+          <div className="space-y-2">
+            <input value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Amount received (SOL)" className="pixel text-sm w-full rounded-lg border border-white/10 bg-white/6 px-3 py-2.5 text-white outline-none placeholder:text-white/28 focus:border-yellow-400/50 transition-colors" />
+            <input value={key} onChange={(event) => setKey(event.target.value)} placeholder="Creator dashboard key" type="password" className="pixel text-sm w-full rounded-lg border border-white/10 bg-white/6 px-3 py-2.5 text-white outline-none placeholder:text-white/28 focus:border-yellow-400/50 transition-colors" />
+            <button onClick={() => recordCreatorRewards(Number(amount), key)} disabled={busy || !Number(amount)} className="pixel text-sm w-full rounded-lg bg-yellow-400 px-4 py-2.5 font-black text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none disabled:opacity-40">
               Record manually
             </button>
           </div>
         )}
       </div>
 
-      {/* Stats grid */}
-      <div className="game-panel p-4">
-        <div className="text-center">
-          <div className="text-xs font-black uppercase tracking-[0.18em] text-white/40">Transparency</div>
-          <h2 className="mt-1 text-2xl font-black text-white">Creator dashboard</h2>
+      {/* Treasury stats */}
+      <div className="game-panel p-4 space-y-3">
+        <div className="pixel text-base text-white/55 uppercase tracking-widest text-center mb-3">Treasury stats</div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: "Daily active pool", value: shortNumber(ledger?.dailyActivePool ?? 0) },
+            { label: "Rewards paid",      value: shortNumber(ledger?.totalJumpRewardsPaid ?? 0) },
+            { label: "Total burned",      value: shortNumber(ledger?.totalTokensBurned ?? 0) },
+            { label: "Burned today",      value: shortNumber(ledger?.dailyTokensBurned ?? 0) },
+            { label: "Daily jump score",  value: shortNumber(dashboard?.totalDailyJumpScore ?? 0) },
+            { label: "Season score",      value: shortNumber(dashboard?.totalSeasonJumpScore ?? 0) },
+          ].map(stat => (
+            <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
+              <div className="pixel text-sm text-white/40 leading-loose">{stat.label}</div>
+              <div className="pixel text-base font-black text-yellow-300">{stat.value}</div>
+            </div>
+          ))}
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <StatBox label="Daily active pool" value={shortNumber(ledger?.dailyActivePool ?? 0)} />
-          <StatBox label="Rewards paid" value={shortNumber(ledger?.totalJumpRewardsPaid ?? 0)} />
-          <StatBox label="Total burned" value={shortNumber(ledger?.totalTokensBurned ?? 0)} />
-          <StatBox label="Burned today" value={shortNumber(ledger?.dailyTokensBurned ?? 0)} />
-          <StatBox label="Daily jump score" value={shortNumber(dashboard?.totalDailyJumpScore ?? 0)} />
-          <StatBox label="Season score" value={shortNumber(dashboard?.totalSeasonJumpScore ?? 0)} />
-        </div>
-        <div className="mt-4 rounded-lg border border-lime-200/20 bg-lime-300/10 p-4 text-center text-sm text-lime-50/75">
-          100% of Pump.fun creator fees go to the daily active pool, split proportionally by jump score.
+        <div className="rounded-xl border border-yellow-400/18 bg-yellow-400/5 p-3 text-center">
+          <p className="pixel text-sm text-white/50 leading-loose">
+            100% of Pump.fun creator fees go to the daily active pool, split proportionally by jump score.
+          </p>
         </div>
       </div>
     </section>
@@ -1429,7 +1436,6 @@ function GameShell({
   setTab,
   player,
   gate,
-  activeFrogs,
   message,
   leaderboard,
   season,
@@ -1452,7 +1458,6 @@ function GameShell({
   setTab: (tab: GameTab) => void;
   player: PlayerState;
   gate: GateResult | null;
-  activeFrogs: number;
   message: string;
   leaderboard: LeaderboardEntry[];
   season: SeasonStats | null;
@@ -1474,10 +1479,13 @@ function GameShell({
   return (
     <main className="game-shell min-h-screen px-3 pb-24 pt-3 text-white sm:px-5 xl:pb-5">
       <div className="mx-auto flex max-w-[1500px] flex-col gap-3">
-        <TopHud player={player} gate={gate} activeFrogs={activeFrogs} message={message} guestMode={guestMode} onConnectWallet={onConnectWallet} />
+        <TopHud player={player} gate={gate} guestMode={guestMode} onConnectWallet={onConnectWallet} />
         <div className="flex gap-3">
           <TabNav activeTab={activeTab} onChange={setTab} />
           <div className="min-w-0 flex-1">
+            {message && (
+              <div className="pixel text-sm text-white/60 text-center rounded-xl border border-white/8 bg-white/4 px-3 py-2 mb-3">{message}</div>
+            )}
             {activeTab === "play" && (
               <PlayTab
                 player={player}
@@ -1574,10 +1582,8 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [eggResult, setEggResult] = useState<EggReveal | null>(null);
 
-  const tokenSymbol = gate?.symbol ?? RUNNING_TOADS_TOKEN_SYMBOL;
-  const activeFrogs = useMemo(() => player?.toads.filter(t => t.active).length ?? 0, [player]);
-
-  const setTab = useCallback((tab: GameTab) => {
+  const tokenSymbol = gate?.symbol ?? JUMP_FROGS_TOKEN_SYMBOL;
+const setTab = useCallback((tab: GameTab) => {
     setActiveTab(tab);
     window.history.replaceState(null, "", `#${tab}`);
   }, []);
@@ -1689,7 +1695,7 @@ export default function Home() {
       } else {
         setTab("play");
       }
-      setMessage("Welcome to RunningToads!");
+      setMessage("Welcome to Jump Frogs!");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Access check failed.");
     } finally {
@@ -1831,7 +1837,6 @@ export default function Home() {
       setTab={setTab}
       player={player}
       gate={gate}
-      activeFrogs={activeFrogs}
       message={message}
       leaderboard={leaderboard}
       season={season}
