@@ -1,4 +1,4 @@
-import { jumpFrogsConfig } from "./config";
+import { toadJumpConfig } from "./config";
 import { getLedger, saveLedger } from "./repository";
 import { awardToadXp, currentWeekId, PlayerState, Toad } from "./store";
 
@@ -32,7 +32,7 @@ function todayKey(): string {
 
 function jumpIntervalForToad(toad: Toad): number {
   const speed = JUMP_SPEED[toad.kind] ?? 1;
-  return Math.max(60_000, Math.floor(jumpFrogsConfig.autoJumpIntervalMs / speed));
+  return Math.max(60_000, Math.floor(toadJumpConfig.autoJumpIntervalMs / speed));
 }
 
 function toadJumpScorePerJump(toad: Toad): number {
@@ -67,7 +67,7 @@ export async function settleAutoJump(state: PlayerState, now = Date.now()): Prom
   const boost = tokenBoostMultiplier(state.tokenBalance);
   let totalJumps = 0;
   let totalScore = 0;
-  let nextJumpAt = now + jumpFrogsConfig.autoJumpIntervalMs;
+  let nextJumpAt = now + toadJumpConfig.autoJumpIntervalMs;
 
   for (const toad of state.toads) {
     if (!toad.active) continue;

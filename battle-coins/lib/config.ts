@@ -1,20 +1,20 @@
-export const jumpFrogsConfig = {
+export const toadJumpConfig = {
   tokenMint:
-    process.env.JUMP_FROGS_TOKEN_MINT ||
-    process.env.NEXT_PUBLIC_JUMP_FROGS_TOKEN_MINT ||
+    process.env.TOAD_JUMP_TOKEN_MINT ||
+    process.env.NEXT_PUBLIC_TOAD_JUMP_TOKEN_MINT ||
     "",
   tokenSymbol:
-    process.env.NEXT_PUBLIC_JUMP_FROGS_TOKEN_SYMBOL ||
-    process.env.JUMP_FROGS_TOKEN_SYMBOL ||
-    "JFROGS",
+    process.env.NEXT_PUBLIC_TOAD_JUMP_TOKEN_SYMBOL ||
+    process.env.TOAD_JUMP_TOKEN_SYMBOL ||
+    "TOADJUMP",
   gateAmount: Number(
-    process.env.JUMP_FROGS_GATE_AMOUNT ||
-      process.env.NEXT_PUBLIC_JUMP_FROGS_GATE_AMOUNT ||
+    process.env.TOAD_JUMP_GATE_AMOUNT ||
+      process.env.NEXT_PUBLIC_TOAD_JUMP_GATE_AMOUNT ||
       250_000
   ),
   buyUrl:
-    process.env.NEXT_PUBLIC_JUMP_FROGS_BUY_URL ||
-    process.env.JUMP_FROGS_BUY_URL ||
+    process.env.NEXT_PUBLIC_TOAD_JUMP_BUY_URL ||
+    process.env.TOAD_JUMP_BUY_URL ||
     "#",
   rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com",
   mockTokenBalance: process.env.MOCK_TOKEN_BALANCE,
@@ -24,7 +24,7 @@ export const jumpFrogsConfig = {
   maxDailyTokenClaims: Number(process.env.MAX_DAILY_TOKEN_CLAIMS || 1000),
   creatorDashboardKey: process.env.CREATOR_DASHBOARD_KEY || "",
   treasuryWallet: process.env.TREASURY_WALLET || "",
-  tokenDecimals: Number(process.env.JUMP_FROGS_TOKEN_DECIMALS || 6),
+  tokenDecimals: Number(process.env.TOAD_JUMP_TOKEN_DECIMALS || 6),
   burnRateBps: Number(process.env.BURN_RATE_BPS || 1000),
   burnEnabled: (process.env.BURN_ENABLED ?? "true") !== "false",
   minTokenClaimAmount: Number(process.env.MIN_TOKEN_CLAIM_AMOUNT || 1),
@@ -35,9 +35,9 @@ export const jumpFrogsConfig = {
 };
 
 export function localDevGateUnlocked(): boolean {
-  return !jumpFrogsConfig.tokenMint && !jumpFrogsConfig.isProduction;
+  return !toadJumpConfig.tokenMint && !toadJumpConfig.isProduction;
 }
 
 export function kvConfigured(): boolean {
-  return Boolean(jumpFrogsConfig.kvRestApiUrl && jumpFrogsConfig.kvRestApiToken);
+  return Boolean(toadJumpConfig.kvRestApiUrl && toadJumpConfig.kvRestApiToken);
 }

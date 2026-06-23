@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Jump Frogs",
+  title: "Toad Jump",
   description: "Hatch rare frogs, race them to the top, and earn as an active holder.",
 };
 

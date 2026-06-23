@@ -1,9 +1,9 @@
-import { jumpFrogsConfig } from "./config";
+import { toadJumpConfig } from "./config";
 
-export const JUMP_FROGS_TOKEN_MINT = jumpFrogsConfig.tokenMint;
-export const JUMP_FROGS_TOKEN_SYMBOL = jumpFrogsConfig.tokenSymbol;
-export const JUMP_FROGS_GATE_AMOUNT = jumpFrogsConfig.gateAmount;
-export const JUMP_FROGS_BUY_URL = jumpFrogsConfig.buyUrl;
+export const TOAD_JUMP_TOKEN_MINT = toadJumpConfig.tokenMint;
+export const TOAD_JUMP_TOKEN_SYMBOL = toadJumpConfig.tokenSymbol;
+export const TOAD_JUMP_GATE_AMOUNT = toadJumpConfig.gateAmount;
+export const TOAD_JUMP_BUY_URL = toadJumpConfig.buyUrl;
 
 export const STARTER_FLIES = 10;
 export const DAILY_FLIES = 5;

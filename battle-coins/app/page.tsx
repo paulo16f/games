@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Activity, Coins, Egg, Flag, History, LayoutDashboard, Trophy, Users } from "lucide-react";
 import {
   ACTION_COSTS,
-  JUMP_FROGS_BUY_URL,
-  JUMP_FROGS_TOKEN_SYMBOL,
+  TOAD_JUMP_BUY_URL,
+  TOAD_JUMP_TOKEN_SYMBOL,
   ToadKind,
 } from "@/lib/constants";
 import { PlayerState, ProjectRewardsLedger, Toad } from "@/lib/store";
@@ -245,10 +245,10 @@ function TopHud({
         <FallbackImage
           src={assetPaths.logo}
           fallback={assetPaths.sourceToads}
-          alt="Jump Frogs"
+          alt="Toad Jump"
           className="h-9 w-9 shrink-0 rounded-lg object-cover"
         />
-        <span className="pixel text-[13px] text-yellow-300 leading-tight">Jump Frogs</span>
+        <span className="pixel text-[13px] text-yellow-300 leading-tight">Toad Jump</span>
 
         {/* Right: stats pushed to the right */}
         {guestMode ? (
@@ -302,11 +302,11 @@ function EntryScreen({
           <FallbackImage
             src={assetPaths.logo}
             fallback={assetPaths.sourceToads}
-            alt="Jump Frogs"
+            alt="Toad Jump"
             className="h-24 w-24 object-contain"
           />
         </div>
-        <h1 className="pixel text-2xl text-yellow-300 sm:text-3xl">Jump Frogs</h1>
+        <h1 className="pixel text-2xl text-yellow-300 sm:text-3xl">Toad Jump</h1>
         <p className="pixel text-sm text-white/80">Idle frogs. Real tokens. On Solana.</p>
       </div>
 
@@ -363,7 +363,7 @@ function EntryScreen({
           ))}
         </div>
         <a
-          href={JUMP_FROGS_BUY_URL}
+          href={TOAD_JUMP_BUY_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="pixel mt-3 block text-center text-sm text-yellow-300/75 hover:text-yellow-300 transition-colors"
@@ -1151,7 +1151,7 @@ function RewardsTab({ season, player }: { season: SeasonStats | null; player: Pl
             {[
               { label: "Your score today",    value: shortNumber(player.dailyJumpScore),               color: "text-yellow-300" },
               { label: "Share of pool",       value: `${(playerShare * 100).toFixed(2)}%`,             color: "text-yellow-300" },
-              { label: "Estimated daily earn",value: `${shortNumber(dailyPool * playerShare)} ${JUMP_FROGS_TOKEN_SYMBOL}`, color: "text-white/80" },
+              { label: "Estimated daily earn",value: `${shortNumber(dailyPool * playerShare)} ${TOAD_JUMP_TOKEN_SYMBOL}`, color: "text-white/80" },
               { label: "Total daily pool",    value: shortNumber(dailyPool),                           color: "text-white/80" },
             ].map(stat => (
               <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
@@ -1184,7 +1184,7 @@ function RewardsTab({ season, player }: { season: SeasonStats | null; player: Pl
       {/* Tip */}
       <div className="rounded-xl border border-yellow-400/18 bg-yellow-400/5 p-4 text-center">
         <p className="pixel text-sm text-white/55 leading-loose">
-          Want a bigger share? Activate more frogs, hold {JUMP_FROGS_TOKEN_SYMBOL} tokens for a 3× score boost, or hatch rarer frogs.
+          Want a bigger share? Activate more frogs, hold {TOAD_JUMP_TOKEN_SYMBOL} tokens for a 3× score boost, or hatch rarer frogs.
         </p>
       </div>
 
@@ -1295,7 +1295,7 @@ function SeasonsTab({ currentSeasonId }: { currentSeasonId: string }) {
             Every jump you make <span className="text-yellow-300">right now</span> counts toward Season 1 rankings.
           </p>
           <p className="pixel text-sm text-white/65 leading-loose">
-            Hatch rarer frogs. Keep them active. Hold {JUMP_FROGS_TOKEN_SYMBOL} tokens to multiply your score up to <span className="text-yellow-300">3×</span>.
+            Hatch rarer frogs. Keep them active. Hold {TOAD_JUMP_TOKEN_SYMBOL} tokens to multiply your score up to <span className="text-yellow-300">3×</span>.
           </p>
           <p className="pixel text-sm text-yellow-300 leading-loose">
             When V2 drops, your position is already locked in.
@@ -1582,7 +1582,7 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [eggResult, setEggResult] = useState<EggReveal | null>(null);
 
-  const tokenSymbol = gate?.symbol ?? JUMP_FROGS_TOKEN_SYMBOL;
+  const tokenSymbol = gate?.symbol ?? TOAD_JUMP_TOKEN_SYMBOL;
 const setTab = useCallback((tab: GameTab) => {
     setActiveTab(tab);
     window.history.replaceState(null, "", `#${tab}`);
@@ -1695,7 +1695,7 @@ const setTab = useCallback((tab: GameTab) => {
       } else {
         setTab("play");
       }
-      setMessage("Welcome to Jump Frogs!");
+      setMessage("Welcome to Toad Jump!");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Access check failed.");
     } finally {

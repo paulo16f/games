@@ -1,5 +1,5 @@
 /**
- * Setup script: creates a Jump Frogs SPL token on Solana devnet.
+ * Setup script: creates a Toad Jump SPL token on Solana devnet.
  * Run once before deploying to Vercel, or re-run after manually funding.
  *
  * Usage:
@@ -24,7 +24,7 @@ const INITIAL_SUPPLY = 10_000_000; // 10M tokens
 const MIN_SOL = 0.5 * LAMPORTS_PER_SOL;
 const KEYPAIR_PATH = "./treasury-devnet.json";
 
-console.log("=== Jump Frogs Devnet Token Setup ===\n");
+console.log("=== Toad Jump Devnet Token Setup ===\n");
 
 const connection = new Connection(DEVNET_RPC, "confirmed");
 
@@ -121,8 +121,8 @@ console.log("SUCCESS — paste these into Vercel → Settings → Env Variables:
 console.log("=".repeat(62));
 console.log();
 console.log(`NEXT_PUBLIC_RPC_URL=https://api.devnet.solana.com`);
-console.log(`JUMP_FROGS_TOKEN_MINT=${mint.toBase58()}`);
-console.log(`JUMP_FROGS_GATE_AMOUNT=1`);
+console.log(`TOAD_JUMP_TOKEN_MINT=${mint.toBase58()}`);
+console.log(`TOAD_JUMP_GATE_AMOUNT=1`);
 console.log(`TREASURY_WALLET=${treasury.publicKey.toBase58()}`);
 console.log(`TREASURY_PRIVATE_KEY=${privateKeyJson}`);
 console.log(`BURN_ENABLED=false`);

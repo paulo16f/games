@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { localDevGateUnlocked, jumpFrogsConfig } from "./config";
+import { localDevGateUnlocked, toadJumpConfig } from "./config";
 
 export interface TokenGateResult {
   wallet: string;
@@ -21,14 +21,14 @@ export async function checkJumpFrogsGate(wallet: string): Promise<TokenGateResul
   const walletLabel = wallet.trim();
 
   if (localDevGateUnlocked()) {
-    const balance = jumpFrogsConfig.gateAmount;
+    const balance = toadJumpConfig.gateAmount;
     return {
       wallet: walletLabel || "local-dev-wallet",
       balance,
       rawBalance: Math.floor(balance * 1_000_000),
       decimals: 6,
-      symbol: jumpFrogsConfig.tokenSymbol,
-      gateAmount: jumpFrogsConfig.gateAmount,
+      symbol: toadJumpConfig.tokenSymbol,
+      gateAmount: toadJumpConfig.gateAmount,
       gated: true,
       configured: true,
       devMode: true,
@@ -38,29 +38,29 @@ export async function checkJumpFrogsGate(wallet: string): Promise<TokenGateResul
   if (!walletLabel) throw new Error("wallet is required");
   const pubkey = parseWallet(walletLabel);
 
-  if (!jumpFrogsConfig.isProduction && jumpFrogsConfig.mockTokenBalance !== undefined) {
-    const balance = Number(jumpFrogsConfig.mockTokenBalance);
+  if (!toadJumpConfig.isProduction && toadJumpConfig.mockTokenBalance !== undefined) {
+    const balance = Number(toadJumpConfig.mockTokenBalance);
     return {
       wallet: pubkey.toBase58(),
       balance,
       rawBalance: Math.floor(balance * 1_000_000),
       decimals: 6,
-      symbol: jumpFrogsConfig.tokenSymbol,
-      gateAmount: jumpFrogsConfig.gateAmount,
-      gated: balance >= jumpFrogsConfig.gateAmount,
+      symbol: toadJumpConfig.tokenSymbol,
+      gateAmount: toadJumpConfig.gateAmount,
+      gated: balance >= toadJumpConfig.gateAmount,
       configured: true,
       devMode: false,
     };
   }
 
-  if (!jumpFrogsConfig.tokenMint) {
+  if (!toadJumpConfig.tokenMint) {
     return {
       wallet: pubkey.toBase58(),
       balance: 0,
       rawBalance: 0,
       decimals: 6,
-      symbol: jumpFrogsConfig.tokenSymbol,
-      gateAmount: jumpFrogsConfig.gateAmount,
+      symbol: toadJumpConfig.tokenSymbol,
+      gateAmount: toadJumpConfig.gateAmount,
       gated: false,
       configured: false,
       devMode: false,
@@ -70,8 +70,8 @@ export async function checkJumpFrogsGate(wallet: string): Promise<TokenGateResul
   let rawBalance = 0;
   let decimals = 6;
   try {
-    const connection = new Connection(jumpFrogsConfig.rpcUrl, "confirmed");
-    const mint = new PublicKey(jumpFrogsConfig.tokenMint);
+    const connection = new Connection(toadJumpConfig.rpcUrl, "confirmed");
+    const mint = new PublicKey(toadJumpConfig.tokenMint);
     const accounts = await connection.getParsedTokenAccountsByOwner(pubkey, { mint });
     for (const { account } of accounts.value) {
       const info = account.data.parsed.info;
@@ -88,9 +88,9 @@ export async function checkJumpFrogsGate(wallet: string): Promise<TokenGateResul
     balance,
     rawBalance,
     decimals,
-    symbol: jumpFrogsConfig.tokenSymbol,
-    gateAmount: jumpFrogsConfig.gateAmount,
-    gated: balance >= jumpFrogsConfig.gateAmount,
+    symbol: toadJumpConfig.tokenSymbol,
+    gateAmount: toadJumpConfig.gateAmount,
+    gated: balance >= toadJumpConfig.gateAmount,
     configured: true,
     devMode: false,
   };
@@ -100,7 +100,7 @@ export async function requireJumpFrogsGate(wallet: string): Promise<{ gate: Toke
   try {
     const gate = await checkJumpFrogsGate(wallet);
     if (!gate.configured) {
-      return { gate, error: "Jump Frogs token mint is not configured", status: 503 };
+      return { gate, error: "Toad Jump token mint is not configured", status: 503 };
     }
     if (!gate.gated) {
       return {
@@ -118,10 +118,10 @@ export async function requireJumpFrogsGate(wallet: string): Promise<{ gate: Toke
       balance: 0,
       rawBalance: 0,
       decimals: 6,
-      symbol: jumpFrogsConfig.tokenSymbol,
-      gateAmount: jumpFrogsConfig.gateAmount,
+      symbol: toadJumpConfig.tokenSymbol,
+      gateAmount: toadJumpConfig.gateAmount,
       gated: false,
-      configured: Boolean(jumpFrogsConfig.tokenMint),
+      configured: Boolean(toadJumpConfig.tokenMint),
       devMode: false,
     };
     return {

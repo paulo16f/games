@@ -10,7 +10,7 @@
  *
  * Reads:
  *   - Treasury keypair from ./treasury-devnet.json
- *   - Token mint from JUMP_FROGS_TOKEN_MINT in .env.local or as JUMP_FROGS_TOKEN_MINT env var
+ *   - Token mint from TOAD_JUMP_TOKEN_MINT in .env.local or as TOAD_JUMP_TOKEN_MINT env var
  */
 
 import { Connection, Keypair, PublicKey, clusterApiUrl } from "@solana/web3.js";
@@ -35,17 +35,17 @@ if (!Number.isFinite(amount) || amount <= 0) {
 }
 
 // --- load .env.local manually (Next.js doesn't load it in plain node) ---
-let tokenMint = process.env.JUMP_FROGS_TOKEN_MINT ?? "";
+let tokenMint = process.env.TOAD_JUMP_TOKEN_MINT ?? "";
 if (!tokenMint && existsSync(".env.local")) {
   for (const line of readFileSync(".env.local", "utf8").split("\n")) {
     const [k, ...rest] = line.split("=");
-    if (k?.trim() === "JUMP_FROGS_TOKEN_MINT") {
+    if (k?.trim() === "TOAD_JUMP_TOKEN_MINT") {
       tokenMint = rest.join("=").trim();
     }
   }
 }
 if (!tokenMint) {
-  console.error("JUMP_FROGS_TOKEN_MINT not set. Add it to .env.local or set as env var.");
+  console.error("TOAD_JUMP_TOKEN_MINT not set. Add it to .env.local or set as env var.");
   process.exit(1);
 }
 

@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { jumpFrogsConfig } from "@/lib/config";
+import { toadJumpConfig } from "@/lib/config";
 import { getLedger, saveLedger } from "@/lib/repository";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const { treasuryWallet, rpcUrl } = jumpFrogsConfig;
+  const { treasuryWallet, rpcUrl } = toadJumpConfig;
   if (!treasuryWallet) {
     return NextResponse.json({ error: "TREASURY_WALLET not configured" }, { status: 503 });
   }

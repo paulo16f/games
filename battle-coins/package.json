@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "smoke:backend": "node scripts/backend-smoke.mjs"
+    "smoke:backend": "node scripts/backend-smoke.mjs",
+    "setup:devnet": "node scripts/setup-devnet-token.mjs",
+    "send:tokens": "node scripts/send-test-tokens.mjs"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.29.0",

@@ -5,7 +5,7 @@ import {
   getOrCreateAssociatedTokenAccount,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { jumpFrogsConfig } from "./config";
+import { toadJumpConfig } from "./config";
 
 export interface BurnAndTransferResult {
   txSignature: string;
@@ -14,9 +14,9 @@ export interface BurnAndTransferResult {
 }
 
 function treasuryKeypair(): Keypair | null {
-  if (!jumpFrogsConfig.treasuryPrivateKey) return null;
+  if (!toadJumpConfig.treasuryPrivateKey) return null;
   try {
-    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(jumpFrogsConfig.treasuryPrivateKey)));
+    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(toadJumpConfig.treasuryPrivateKey)));
   } catch {
     return null;
   }
@@ -28,7 +28,7 @@ export async function burnAndTransfer(
   burnRateBps: number,
   decimals: number,
 ): Promise<BurnAndTransferResult> {
-  const { isProduction, tokenMint, treasuryPrivateKey } = jumpFrogsConfig;
+  const { isProduction, tokenMint, treasuryPrivateKey } = toadJumpConfig;
 
   if (!isProduction && (!tokenMint || !treasuryPrivateKey)) {
     const scale = Math.pow(10, decimals);
@@ -43,10 +43,10 @@ export async function burnAndTransfer(
 
   const treasury = treasuryKeypair();
   if (!treasury) throw new Error("Treasury private key is not configured");
-  if (!tokenMint) throw new Error("Jump Frogs token mint is not configured");
+  if (!tokenMint) throw new Error("Toad Jump token mint is not configured");
 
   const { Connection } = await import("@solana/web3.js");
-  const connection = new Connection(jumpFrogsConfig.rpcUrl, "confirmed");
+  const connection = new Connection(toadJumpConfig.rpcUrl, "confirmed");
   const mint = new PublicKey(tokenMint);
   const recipient = new PublicKey(toWallet);
   const scale = Math.pow(10, decimals);
@@ -82,6 +82,6 @@ export async function burnAndTransfer(
 }
 
 export async function transferRewardTokens(toWallet: string, amountUi: number): Promise<string> {
-  const result = await burnAndTransfer(toWallet, amountUi, 0, jumpFrogsConfig.tokenDecimals);
+  const result = await burnAndTransfer(toWallet, amountUi, 0, toadJumpConfig.tokenDecimals);
   return result.txSignature;
 }

@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jumpFrogsConfig } from "@/lib/config";
+import { toadJumpConfig } from "@/lib/config";
 import { getLedger, saveLedger } from "@/lib/repository";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   const body = await req.json() as { amount?: unknown; key?: unknown; note?: unknown };
-  if (!jumpFrogsConfig.creatorDashboardKey) {
+  if (!toadJumpConfig.creatorDashboardKey) {
     return NextResponse.json({ error: "Creator dashboard key is not configured" }, { status: 503 });
   }
-  if (body.key !== jumpFrogsConfig.creatorDashboardKey) {
+  if (body.key !== toadJumpConfig.creatorDashboardKey) {
     return NextResponse.json({ error: "Invalid creator dashboard key" }, { status: 403 });
   }
   const amount = Number(body.amount);
