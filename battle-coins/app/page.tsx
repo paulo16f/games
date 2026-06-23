@@ -75,10 +75,7 @@ const gameTabs: Array<{ id: GameTab; label: string; Icon: typeof Activity }> = [
 
 const assetPaths = {
   logo: "/frogs/toad-jump-coin.png",
-  raceGif: "/frogs/race-toad.gif",
-  sourceToads: "/frogs/source-toads.png",
-  egg: "/frogs/egg.png",
-  fly: "/frogs/fly.png",
+  sourceToads: "/frogs/swamp-toad.png",
   forest: "/frogs/toad-jump-banner.png",
   toads: {
     swamp:   "/frogs/swamp-toad.png",
