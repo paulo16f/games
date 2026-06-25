@@ -121,7 +121,8 @@ export interface PlayerState {
   lastVerifiedAt: number;
   lastFlyClaimAt: number;
   lastRaceWindowId: number;
-  lastRaceResult: { rank: number; score: number; tokensAwarded: number; fliesAwarded: number; toadName?: string } | null;
+  lastRaceResult: { rank: number; score: number; tokensAwarded: number; fliesAwarded: number; toadName?: string; cancelled?: boolean } | null;
+  raceHistory: Array<{ rank: number; score: number; tokensAwarded: number; fliesAwarded: number; toadName: string; windowId: number; timestamp: number }>;
   createdAt: number;
   updatedAt: number;
 }
@@ -279,6 +280,7 @@ export function defaultState(wallet: string): PlayerState {
     lastFlyClaimAt: 0,
     lastRaceWindowId: 0,
     lastRaceResult: null,
+    raceHistory: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -343,6 +345,7 @@ export function migratePlayer(state: PlayerState): PlayerState {
   state.lastFlyClaimAt ??= 0;
   state.lastRaceWindowId ??= 0;
   state.lastRaceResult ??= null;
+  state.raceHistory ??= [];
 
   const today = new Date().toISOString().slice(0, 10);
   if (state.dailyJumpDay !== today) {
@@ -415,9 +418,12 @@ export function refreshPlayerEnergy(state: PlayerState): void {
   for (const toad of state.toads) refillToadEnergy(toad);
 }
 
+export const TOAD_MAX_LEVEL = 10;
+
 export function awardToadXp(toad: Toad, xp: number): void {
+  if (toad.level >= TOAD_MAX_LEVEL) { toad.xp = 0; return; }
   toad.xp += xp;
-  while (toad.xp >= toad.level * 25) {
+  while (toad.xp >= toad.level * 25 && toad.level < TOAD_MAX_LEVEL) {
     toad.xp -= toad.level * 25;
     toad.level += 1;
     toad.speed += 2;
@@ -425,6 +431,7 @@ export function awardToadXp(toad: Toad, xp: number): void {
     toad.consistency += 1;
     if (toad.kind === "shadow") toad.luck += 2;
   }
+  if (toad.level >= TOAD_MAX_LEVEL) toad.xp = 0;
 }
 
 export function recordCreatorRewards(amount: number): ProjectRewardsLedger {

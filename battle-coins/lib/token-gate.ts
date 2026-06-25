@@ -17,7 +17,7 @@ export function parseWallet(wallet: string): PublicKey {
   return new PublicKey(wallet);
 }
 
-export async function checkJumpFrogsGate(wallet: string): Promise<TokenGateResult> {
+export async function checkToadJumpGate(wallet: string): Promise<TokenGateResult> {
   const walletLabel = wallet.trim();
 
   if (localDevGateUnlocked()) {
@@ -96,9 +96,9 @@ export async function checkJumpFrogsGate(wallet: string): Promise<TokenGateResul
   };
 }
 
-export async function requireJumpFrogsGate(wallet: string): Promise<{ gate: TokenGateResult; error: string; status: number }> {
+export async function requireToadJumpGate(wallet: string): Promise<{ gate: TokenGateResult; error: string; status: number }> {
   try {
-    const gate = await checkJumpFrogsGate(wallet);
+    const gate = await checkToadJumpGate(wallet);
     if (!gate.configured) {
       return { gate, error: "Toad Jump token mint is not configured", status: 503 };
     }

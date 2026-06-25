@@ -5,6 +5,7 @@ import {
   isGameAction,
 } from "@/lib/game-engine";
 import { getOrCreatePlayer, savePlayer } from "@/lib/repository";
+import { kvConfigured } from "@/lib/config";
 import { checkToadJumpGate } from "@/lib/token-gate";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     });
     const playerData = await savePlayer(state);
 
-    return NextResponse.json({ playerData, result, gate });
+    return NextResponse.json({ playerData, result, gate, kvOk: kvConfigured() });
   } catch (error) {
     if (error instanceof GameActionError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

@@ -6,6 +6,7 @@ import { getLedger, getRaceEvent, saveRaceEvent, saveLedger } from "./repository
 import { enterRace, resolveRaceEvent } from "./race-engine";
 import { claim24hReward, payRacePrize } from "./reward-engine";
 import {
+  awardToadXp,
   initializePlayer,
   PlayerState,
 } from "./store";
@@ -24,7 +25,8 @@ export type GameAction =
   | "deactivate_toad"
   | "select_toad"
   | "record_creator_rewards"
-  | "claim_weekly_rewards";
+  | "claim_weekly_rewards"
+  | "feed_toad";
 
 export interface GameActionInput {
   action: GameAction;
@@ -52,6 +54,14 @@ async function maybeFinalizeRace(state: PlayerState): Promise<void> {
   const event = await getRaceEvent(state.lastRaceWindowId);
   if (!event || event.resolved || Date.now() < event.endsAt) return;
 
+  // Cancel and refund if fewer than 3 real players entered
+  if (event.entrants.length < 3) {
+    state.flies += 2;
+    state.lastRaceWindowId = 0;
+    state.lastRaceResult = { rank: 0, score: 0, tokensAwarded: 0, fliesAwarded: 2, cancelled: true };
+    return;
+  }
+
   const ledger = await getLedger();
   const resolved = resolveRaceEvent(event, ledger);
   await saveRaceEvent(resolved);
@@ -67,8 +77,33 @@ async function maybeFinalizeRace(state: PlayerState): Promise<void> {
       fliesAwarded: myResult.fliesAwarded,
       toadName: myEntrant?.toadSnapshot.name,
     };
+    state.raceHistory = [
+      {
+        rank: myResult.rank,
+        score: myResult.score,
+        tokensAwarded: myResult.tokensAwarded,
+        fliesAwarded: myResult.fliesAwarded,
+        toadName: myEntrant?.toadSnapshot.name ?? "",
+        windowId: event.windowId,
+        timestamp: Date.now(),
+      },
+      ...(state.raceHistory ?? []),
+    ].slice(0, 20);
     if (myResult.tokensAwarded > 0) {
-      await payRacePrize(state.wallet, myResult.tokensAwarded, ledger);
+      const tx = await payRacePrize(state.wallet, myResult.tokensAwarded, ledger);
+      if (!tx) {
+        // Token prize below minimum or transfer failed — give flies instead
+        const flyFallback = myResult.rank === 1 ? 4 : myResult.rank === 2 ? 2 : 1;
+        state.flies += flyFallback;
+        if (state.lastRaceResult) {
+          state.lastRaceResult.tokensAwarded = 0;
+          state.lastRaceResult.fliesAwarded = flyFallback;
+        }
+        if (state.raceHistory.length > 0) {
+          state.raceHistory[0].tokensAwarded = 0;
+          state.raceHistory[0].fliesAwarded = flyFallback;
+        }
+      }
     } else if (myResult.fliesAwarded > 0) {
       state.flies += myResult.fliesAwarded;
     }
@@ -222,6 +257,23 @@ export async function handleGameAction(
       throw new GameActionError("Weekly token prize pool is coming in v2", 403);
     }
 
+    case "feed_toad": {
+      const toad = state.toads.find(t => t.id === input.toadId);
+      if (!toad) throw new GameActionError("Toad not found", 404);
+      const cost = ACTION_COSTS.feedToad;
+      if (state.flies < cost) throw new GameActionError(`Need ${cost} flies to feed`);
+      state.flies -= cost;
+      const xpGained = 25 + Math.floor(toad.level * 5);
+      const levelBefore = toad.level;
+      awardToadXp(toad, xpGained);
+      const leveled = toad.level > levelBefore;
+      // Micro-contribution to race pool: every feed fuels the prize pot
+      const ledger = await getLedger();
+      ledger.racePool = Math.max(0, (ledger.racePool ?? 0) + 0.5);
+      await saveLedger(ledger);
+      return { fed: true, toadId: toad.id, toadName: toad.name, xpGained, level: toad.level, leveled };
+    }
+
     default:
       throw new GameActionError("Unknown action");
   }
@@ -241,6 +293,7 @@ export function isGameAction(value: unknown): value is GameAction {
     value === "deactivate_toad" ||
     value === "select_toad" ||
     value === "record_creator_rewards" ||
-    value === "claim_weekly_rewards"
+    value === "claim_weekly_rewards" ||
+    value === "feed_toad"
   );
 }

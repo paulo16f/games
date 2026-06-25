@@ -29,7 +29,7 @@ export const toadJumpConfig = {
   burnEnabled: (process.env.BURN_ENABLED ?? "true") !== "false",
   minTokenClaimAmount: Number(process.env.MIN_TOKEN_CLAIM_AMOUNT || 100),
   autoJumpIntervalMs: Number(process.env.AUTO_JUMP_INTERVAL_MS || 5 * 60 * 1000),
-  rewardClaimCooldownMs: Number(process.env.REWARD_CLAIM_COOLDOWN_MS || 60 * 60 * 1000),
+  rewardClaimCooldownMs: Number(process.env.REWARD_CLAIM_COOLDOWN_MS || 30 * 60 * 1000),
   kvRestApiUrl: process.env.KV_REST_API_URL || "",
   kvRestApiToken: process.env.KV_REST_API_TOKEN || "",
   isProduction: process.env.NODE_ENV === "production",

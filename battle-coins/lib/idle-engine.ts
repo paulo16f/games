@@ -100,9 +100,16 @@ export async function settleAutoJump(state: PlayerState, now = Date.now()): Prom
     state.totalXp += totalJumps;
 
     const ledger = await getLedger();
-    if (ledger.dailyJumpDay !== today) {
+    const isNewDay = ledger.dailyJumpDay !== today;
+    if (isNewDay) {
       ledger.dailyJumpDay = today;
       ledger.dailyJumpScoreTotal = 0;
+      // Daily 5% drip from dailyActivePool → racePool (automatic, no manual steps)
+      const drip = Math.floor((ledger.dailyActivePool ?? 0) * 0.05);
+      if (drip > 0) {
+        ledger.racePool = (ledger.racePool ?? 0) + drip;
+        ledger.dailyActivePool = Math.max(0, (ledger.dailyActivePool ?? 0) - drip);
+      }
     }
     ledger.dailyJumpScoreTotal += totalScore;
     ledger.seasonJumpScoreTotal += totalScore;

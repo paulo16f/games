@@ -66,22 +66,6 @@ export function resolveRaceEvent(
     isBot: false,
   }));
 
-  // Fill to 4 with seeded NPCs so all players see the same bot scores for this window
-  if (scored.length < 4) {
-    const rand = seededRand(event.windowId ^ 0xDEADBEEF);
-    const npcCount = 4 - scored.length;
-    for (let i = 0; i < npcCount; i++) {
-      const npc = NPC_ARCHETYPES[i % NPC_ARCHETYPES.length];
-      // Re-implement raceScore using seeded rand
-      const npcScore =
-        rand() * 75 +
-        (npc.luck / 100) * rand() * 15 +
-        Math.min((npc.level - 1) * 1.0, 12) +
-        npc.speed * 0.025 + npc.stamina * 0.02 + npc.consistency * 0.015;
-      scored.push({ wallet: `npc:${i}`, score: npcScore, isBot: true, botName: npc.name });
-    }
-  }
-
   scored.sort((a, b) => b.score - a.score);
 
   let totalHumanTokensAwarded = 0;
