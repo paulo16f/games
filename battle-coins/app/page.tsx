@@ -255,9 +255,15 @@ function TopHud({
 
         {/* Right: game stats */}
         {guestMode ? (
-          <button onClick={onConnectWallet} className="ml-auto pixel text-sm font-bold text-amber-300 hover:text-amber-200 transition-colors">
-            Guest · Connect →
-          </button>
+          <div className="ml-auto flex items-center gap-1.5">
+            <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1">
+              <span className="text-base leading-none">🪰</span>
+              <span className="pixel text-sm font-black text-yellow-300">{player.flies}</span>
+            </div>
+            <button onClick={onConnectWallet} className="pixel text-sm font-bold text-amber-300 hover:text-amber-200 transition-colors">
+              Guest · Connect →
+            </button>
+          </div>
         ) : (
           <div className="ml-auto flex items-center gap-1.5">
             {/* Wallet */}
@@ -310,6 +316,7 @@ function EntryScreen({
   tokenSymbol: string;
 }) {
   const [showBoost, setShowBoost] = useState(false);
+  const [showHowTo, setShowHowTo] = useState(true);
 
   return (
     <main
@@ -333,33 +340,33 @@ function EntryScreen({
       </div>
 
       {/* Middle — connect card */}
-      <div className="relative z-10 flex flex-1 items-center justify-center py-4">
-        <div className="w-full max-w-sm rounded-xl border border-white/15 bg-black/35 p-5 backdrop-blur-md">
+      <div className="relative z-10 flex flex-1 items-center justify-center py-4 px-1">
+        <div className="w-full max-w-sm min-w-0 overflow-hidden rounded-xl border border-white/15 bg-black/35 p-4 sm:p-5 backdrop-blur-md">
           <input
             value={walletInput}
             onChange={(event) => setWalletInput(event.target.value)}
             onKeyDown={(event) => event.key === "Enter" && checkAccess()}
             placeholder="Paste Solana wallet address"
-            className="pixel w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/55 focus:border-yellow-400/60 transition-colors"
+            className="pixel w-full min-w-0 rounded-lg border border-white/20 bg-white/10 px-3 py-3 text-xs sm:text-sm text-white outline-none placeholder:text-white/55 focus:border-yellow-400/60 transition-colors"
           />
           {message && (
-            <div className="pixel mt-2 text-sm text-white/80" aria-live="polite">{message}</div>
+            <div className="pixel mt-2 text-xs sm:text-sm text-white/80 break-words" aria-live="polite">{message}</div>
           )}
           {gate?.balance !== undefined && (
-            <div className="pixel mt-1 text-sm text-white/80">Balance: <span className="font-mono font-bold text-yellow-300">{shortNumber(gate.balance)}</span> {gate.symbol}</div>
+            <div className="pixel mt-1 text-xs sm:text-sm text-white/80">Balance: <span className="font-mono font-bold text-yellow-300">{shortNumber(gate.balance)}</span> {gate.symbol}</div>
           )}
           <div className="mt-4 grid grid-cols-2 gap-3">
             <button
               onClick={checkAccess}
               disabled={busy}
-              className="pixel rounded-lg bg-yellow-400 py-4 text-sm font-black text-black shadow-[0_4px_0_rgba(0,0,0,0.5),0_0_20px_rgba(255,215,0,0.3)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+              className="pixel rounded-lg bg-yellow-400 py-3 sm:py-4 text-xs sm:text-sm font-black text-black shadow-[0_4px_0_rgba(0,0,0,0.5),0_0_20px_rgba(255,215,0,0.3)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
             >
               {busyAction === "check" ? "Loading..." : "▶ Connect"}
             </button>
             <button
               onClick={onPlayAsGuest}
               disabled={busy}
-              className="pixel rounded-lg border border-white/30 bg-white/12 py-4 text-sm font-black text-white hover:bg-white/20 active:scale-95 transition-all disabled:opacity-50"
+              className="pixel rounded-lg border border-white/30 bg-white/12 py-3 sm:py-4 text-xs sm:text-sm font-black text-white hover:bg-white/20 active:scale-95 transition-all disabled:opacity-50"
             >
               👁 Guest
             </button>
@@ -370,36 +377,46 @@ function EntryScreen({
       {/* Bottom — how to play first, boost tiers collapsed */}
       <div className="relative z-10 w-full max-w-sm mx-auto pb-8 space-y-4">
 
-        {/* How to play — always visible */}
-        <div className="space-y-2">
-          <div className="pixel text-center text-sm text-white/70 uppercase tracking-widest mb-3">How to play</div>
-          {[
-            { step: "①", icon: "🥚", title: "Hatch a Toad", desc: "Spend 5 flies → crack an egg → get a random toad!", sub: "5 rarity tiers: Common → Legendary" },
-            { step: "②", icon: "⚡", title: "Activate it", desc: "Tap your toad → it jumps automatically!", sub: "Rarer toad = more points per hour" },
-            { step: "③", icon: "🪰", title: "Collect flies", desc: "Claim +5 free flies every 30 minutes", sub: "Need 10,000 tokens to unlock claims" },
-            { step: "④", icon: "💰", title: "Earn real tokens", desc: "Jump score = share of the daily pool", sub: "Claim straight to your Solana wallet" },
-            { step: "⑤", icon: "🏎", title: "Race!", desc: "Enter 30-min races vs other players", sub: "Win tokens or flies as prizes" },
-          ].map(item => (
-            <div key={item.step} className="flex items-start gap-3 rounded-lg border border-white/12 bg-black/25 backdrop-blur-sm px-3 py-3">
-              <div className="pixel text-base text-yellow-300/70 shrink-0 mt-0.5">{item.step}</div>
-              <div className="text-xl shrink-0">{item.icon}</div>
-              <div className="min-w-0">
-                <div className="pixel text-sm font-black text-white">{item.title}</div>
-                <div className="pixel text-sm text-white/65 leading-snug mt-0.5">{item.desc}</div>
-                <div className="pixel text-sm text-white/35 leading-snug mt-0.5">{item.sub}</div>
+        {/* How to play — collapsible, starts open */}
+        <div>
+          <button
+            onClick={() => setShowHowTo(v => !v)}
+            className="pixel w-full rounded-xl border border-white/15 bg-black/25 backdrop-blur-sm px-4 py-3 text-sm text-white/80 hover:bg-black/35 transition-colors flex items-center justify-between mb-1"
+          >
+            <span>❓ How to play</span>
+            <span className="text-white/45">{showHowTo ? "▲" : "▼"}</span>
+          </button>
+          {showHowTo && (
+            <div className="mt-2 space-y-2">
+              {[
+                { step: "①", icon: "🥚", title: "Hatch a Toad", desc: "Spend 5 flies → crack an egg → get a random toad!", sub: "5 rarity tiers: Common → Legendary" },
+                { step: "②", icon: "⚡", title: "Activate it", desc: "Tap your toad → it jumps automatically!", sub: "Rarer toad = more points per hour" },
+                { step: "③", icon: "🪰", title: "Collect flies", desc: "Claim +5 free flies every 30 minutes", sub: "Need 10,000 tokens to unlock claims" },
+                { step: "④", icon: "💰", title: "Earn real tokens", desc: "Jump score = share of the daily pool", sub: "Claim straight to your Solana wallet" },
+                { step: "⑤", icon: "🏎", title: "Race!", desc: "Enter 30-min races vs other players", sub: "Win tokens or flies as prizes" },
+              ].map(item => (
+                <div key={item.step} className="flex items-start gap-3 rounded-lg border border-white/12 bg-black/25 backdrop-blur-sm px-3 py-3">
+                  <div className="pixel text-base text-yellow-300/70 shrink-0 mt-0.5">{item.step}</div>
+                  <div className="text-xl shrink-0">{item.icon}</div>
+                  <div className="min-w-0">
+                    <div className="pixel text-sm font-black text-white">{item.title}</div>
+                    <div className="pixel text-sm text-white/65 leading-snug mt-0.5">{item.desc}</div>
+                    <div className="pixel text-sm text-white/35 leading-snug mt-0.5">{item.sub}</div>
+                  </div>
+                </div>
+              ))}
+              {/* Guest CTA */}
+              <div className="rounded-lg border border-yellow-400/25 bg-yellow-400/8 px-3 py-3">
+                <div className="pixel text-sm text-yellow-300 mb-2">👁 You start with 10 flies — enough to hatch 2 toads right now!</div>
+                <button
+                  onClick={onPlayAsGuest}
+                  className="pixel w-full rounded-lg bg-yellow-400 py-2.5 text-sm font-black text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[1px] active:shadow-none transition-all"
+                >
+                  Try as Guest →
+                </button>
               </div>
             </div>
-          ))}
-          {/* Guest CTA */}
-          <div className="rounded-lg border border-yellow-400/25 bg-yellow-400/8 px-3 py-3">
-            <div className="pixel text-sm text-yellow-300 mb-2">👁 You start with 10 flies — enough to hatch 2 toads right now!</div>
-            <button
-              onClick={onPlayAsGuest}
-              className="pixel w-full rounded-lg bg-yellow-400 py-2.5 text-sm font-black text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[1px] active:shadow-none transition-all"
-            >
-              Try as Guest →
-            </button>
-          </div>
+          )}
         </div>
 
         {/* Score multipliers — collapsed by default */}
@@ -835,6 +852,7 @@ function RacesTab({
 }) {
   const [now, setNow] = useState(Date.now());
   const [raceChampions, setRaceChampions] = useState<{ wallet: string; wins: number; totalRaces: number; racePoints: number }[]>([]);
+  const [raceEntrants, setRaceEntrants] = useState<{ wallet: string; toadName: string; toadRarity: string; toadLevel: number }[]>([]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -845,6 +863,13 @@ function RacesTab({
     const load = () => fetch("/api/races/leaderboard").then(r => r.json()).then(setRaceChampions).catch(() => {});
     load();
     const id = setInterval(load, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const load = () => fetch("/api/races/current").then(r => r.json()).then(d => setRaceEntrants(d.entrants ?? [])).catch(() => {});
+    load();
+    const id = setInterval(load, 15_000);
     return () => clearInterval(id);
   }, []);
 
@@ -900,11 +925,9 @@ function RacesTab({
   return (
     <section className="space-y-3">
 
-      {/* Zone A — Race Hero */}
-      <div className="game-panel px-4 py-5" style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(255,215,0,0.07) 0%, transparent 70%)" }}>
-        <div className="pixel text-white/40 uppercase tracking-widest mb-3 text-center" style={{ fontSize: "8px" }}>
-          CURRENT RACE WINDOW
-        </div>
+      {/* Zone A — Race Hero: timer + pool + enrollment */}
+      <div className="game-panel px-4 py-4" style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(255,215,0,0.07) 0%, transparent 70%)" }}>
+        <div className="pixel text-white/40 uppercase tracking-widest mb-3 text-center" style={{ fontSize: "8px" }}>CURRENT RACE WINDOW</div>
         <div className="grid grid-cols-3 gap-2">
           <div className="flex flex-col items-center gap-1 rounded-lg border border-white/8 bg-white/3 px-2 py-3">
             <div className={`pixel text-xl leading-none ${isClosing ? "animate-pulse text-red-400" : "text-yellow-300"}`}>
@@ -918,30 +941,92 @@ function RacesTab({
           </div>
           <div className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-3 ${alreadyEntered ? "border-emerald-400/20 bg-emerald-400/5" : "border-white/8 bg-white/3"}`}>
             <div className={`pixel text-xl leading-none ${alreadyEntered ? "text-emerald-300" : "text-white/55"}`}>
-              {alreadyEntered ? "✓" : "—"}
+              {alreadyEntered ? "✓" : raceEntrants.length > 0 ? String(raceEntrants.length) : "—"}
             </div>
             <div className={`pixel mt-1 ${alreadyEntered ? "text-emerald-400/70" : "text-white/40"}`} style={{ fontSize: "8px" }}>
-              {alreadyEntered ? "YOU IN" : "ENROLLED"}
+              {alreadyEntered ? "YOU IN" : "PLAYERS"}
             </div>
           </div>
         </div>
-        <div className="pixel text-white/35 text-center mt-3" style={{ fontSize: "8px" }}>
-          {alreadyEntered ? "Waiting for 3+ players — pool grows if cancelled" : "Every 30 min · 3 real players minimum"}
+        <div className="pixel text-white/35 text-center mt-2" style={{ fontSize: "8px" }}>
+          {alreadyEntered ? "Waiting for 3+ players — pool carries over if cancelled" : "Every 30 min · 3 real players minimum"}
         </div>
       </div>
 
-      {/* Zone B — Enter button (immediately after hero) */}
-      <button
-        onClick={() => selectedToad && enterRaceEventWithToad(selectedToad.id)}
-        disabled={!canEnter || busy}
-        className={`pixel text-[13px] w-full rounded-xl py-4 transition-all disabled:opacity-50 ${enterButtonStyle}`}
-      >
-        {enterButtonLabel()}
-      </button>
+      {/* Zone B — Side by side: Your Racer | In This Race */}
+      <div className="grid grid-cols-2 gap-3 items-start">
 
-      {/* Zone C — Prize breakdown */}
-      <div className="game-panel px-4 py-4">
-        <div className="pixel text-white/40 uppercase tracking-widest mb-3" style={{ fontSize: "8px" }}>PRIZE BREAKDOWN</div>
+        {/* Left: Your Racer */}
+        {selectedToad ? (() => {
+          const pot = racePotential(selectedToad);
+          const bars = [
+            { label: "Luck",  value: Math.round((selectedToad.luck / 100) * 15), max: 15, color: "bg-yellow-400" },
+            { label: "Level", value: Math.round(Math.min((selectedToad.level - 1) * 1.0, 12)), max: 12, color: "bg-purple-400" },
+            { label: "Stats", value: Math.round(selectedToad.speed * 0.025 + selectedToad.stamina * 0.02 + selectedToad.consistency * 0.015), max: 12, color: "bg-sky-400" },
+          ];
+          return (
+            <div className="game-panel p-3 space-y-2">
+              <div className="pixel text-white/40 uppercase tracking-widest text-center" style={{ fontSize: "8px" }}>YOUR RACER</div>
+              <div className={`rounded-xl border-2 p-2 text-center ${toadTone[selectedToad.kind]}`}>
+                <img src={assetPaths.toads[selectedToad.kind]} alt={selectedToad.name} className="h-14 w-14 mx-auto object-contain" />
+                <div className="pixel text-xs text-white font-black leading-snug truncate mt-1">{selectedToad.name}</div>
+                <div className="pixel text-white/50 mt-0.5" style={{ fontSize: "9px" }}>{selectedToad.rarity} · Lv {selectedToad.level}</div>
+                <div className="pixel text-yellow-300 mt-1" style={{ fontSize: "10px" }}>+{pot.total} pts bonus</div>
+              </div>
+              <div className="space-y-1.5">
+                {bars.map(b => (
+                  <div key={b.label} className="flex items-center gap-1.5">
+                    <span className="pixel w-8 shrink-0 text-white/45" style={{ fontSize: "9px" }}>{b.label}</span>
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+                      <div className={`h-full rounded-full ${b.color}`} style={{ width: `${Math.min(100, Math.round((b.value / b.max) * 100))}%` }} />
+                    </div>
+                    <span className="pixel w-7 shrink-0 text-right text-white/65" style={{ fontSize: "9px" }}>+{b.value}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-lg border border-yellow-400/20 bg-yellow-400/6 px-2 py-1.5 text-center">
+                <span className="pixel text-white/45" style={{ fontSize: "9px" }}>75% luck · any toad can win</span>
+              </div>
+            </div>
+          );
+        })() : (
+          <div className="game-panel p-4 flex flex-col items-center gap-2 text-center">
+            <div className="text-3xl">🥚</div>
+            <div className="pixel text-white/40 leading-loose" style={{ fontSize: "10px" }}>No toads yet<br/>go hatch one!</div>
+          </div>
+        )}
+
+        {/* Right: In This Race */}
+        <div className="game-panel p-3 space-y-2">
+          <div className="pixel text-white/40 uppercase tracking-widest text-center" style={{ fontSize: "8px" }}>
+            IN THIS RACE · {raceEntrants.length}/3+
+          </div>
+          {raceEntrants.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-3 text-center">
+              <div className="text-2xl">🏁</div>
+              <div className="pixel text-white/35 leading-loose" style={{ fontSize: "10px" }}>Be the first<br/>to enter!</div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {raceEntrants.map((e, i) => (
+                <div key={i} className="rounded-lg border border-white/8 bg-white/3 px-2 py-2">
+                  <div className="pixel text-xs text-white font-black truncate">{e.toadName}</div>
+                  <div className="pixel text-white/40 mt-0.5" style={{ fontSize: "9px" }}>{e.toadRarity} · Lv {e.toadLevel}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {raceEntrants.length < 3 && (
+            <div className="pixel text-white/30 text-center" style={{ fontSize: "9px" }}>
+              Need {Math.max(0, 3 - raceEntrants.length)} more to start
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Zone C — Prize breakdown + Enter button */}
+      <div className="game-panel px-4 py-4 space-y-3">
+        <div className="pixel text-white/40 uppercase tracking-widest text-center" style={{ fontSize: "8px" }}>PRIZE BREAKDOWN</div>
         <div className="grid grid-cols-3 gap-2">
           {[
             { medal: "🥇", share: "40%" },
@@ -950,59 +1035,22 @@ function RacesTab({
           ].map(t => (
             <div key={t.share} className="rounded-lg border border-white/8 bg-white/3 px-2 py-3 text-center">
               <div className="text-xl">{t.medal}</div>
-              <div className="pixel text-yellow-300 mt-1.5" style={{ fontSize: "10px" }}>{t.share}</div>
+              <div className="pixel text-yellow-300 mt-1.5" style={{ fontSize: "11px" }}>{t.share}</div>
               <div className="pixel text-white/35 mt-1" style={{ fontSize: "8px" }}>of pool</div>
             </div>
           ))}
         </div>
-        <div className="pixel text-white/30 text-center mt-2.5" style={{ fontSize: "8px" }}>
+        <div className="pixel text-white/30 text-center" style={{ fontSize: "8px" }}>
           2 flies refunded if cancelled · pool carries over untouched
         </div>
+        <button
+          onClick={() => selectedToad && enterRaceEventWithToad(selectedToad.id)}
+          disabled={!canEnter || busy}
+          className={`pixel text-[13px] w-full rounded-xl py-4 transition-all disabled:opacity-50 ${enterButtonStyle}`}
+        >
+          {enterButtonLabel()}
+        </button>
       </div>
-
-      {/* Zone D — Auto-selected toad racer */}
-      {selectedToad ? (() => {
-        const pot = racePotential(selectedToad);
-        const bars = [
-          { label: "Luck",  value: Math.round((selectedToad.luck / 100) * 15), max: 15, color: "bg-yellow-400" },
-          { label: "Level", value: Math.round(Math.min((selectedToad.level - 1) * 1.0, 12)), max: 12, color: "bg-purple-400" },
-          { label: "Stats", value: Math.round(selectedToad.speed * 0.025 + selectedToad.stamina * 0.02 + selectedToad.consistency * 0.015), max: 12, color: "bg-sky-400" },
-        ];
-        return (
-          <div className="game-panel px-4 py-4">
-            <div className="pixel text-white/40 uppercase tracking-widest mb-3" style={{ fontSize: "8px" }}>YOUR RACER</div>
-            <div className={`flex items-center gap-4 rounded-xl border-2 p-3 mb-4 ${toadTone[selectedToad.kind]}`}>
-              <img src={assetPaths.toads[selectedToad.kind]} alt={selectedToad.name} className="h-20 w-20 shrink-0 object-contain" />
-              <div className="min-w-0 text-center">
-                <div className="pixel text-base text-white font-black leading-snug truncate">{selectedToad.name}</div>
-                <div className="pixel text-white/55 mt-1" style={{ fontSize: "10px" }}>{selectedToad.rarity} · Lv {selectedToad.level}</div>
-                <div className="pixel text-yellow-300 mt-2" style={{ fontSize: "11px" }}>
-                  up to +{pot.total} <span className="text-white/45">pts bonus</span>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {bars.map(b => (
-                <div key={b.label} className="flex items-center gap-2">
-                  <span className="pixel w-12 shrink-0 overflow-hidden text-white/55" style={{ fontSize: "10px" }}>{b.label}</span>
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                    <div className={`h-full rounded-full ${b.color}`} style={{ width: `${Math.min(100, Math.round((b.value / b.max) * 100))}%` }} />
-                  </div>
-                  <span className="pixel w-10 shrink-0 text-right text-white/75" style={{ fontSize: "10px" }}>+{b.value}</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 rounded-lg border border-yellow-400/20 bg-yellow-400/6 px-3 py-2 text-center">
-              <span className="pixel text-white/55" style={{ fontSize: "10px" }}>75% luck · any toad can win</span>
-            </div>
-          </div>
-        );
-      })() : (
-        <div className="game-panel p-6 flex flex-col items-center gap-3 text-center">
-          <div className="text-4xl">🥚</div>
-          <div className="pixel text-white/40 leading-loose" style={{ fontSize: "11px" }}>No toads yet<br/>go hatch one!</div>
-        </div>
-      )}
 
       {/* Zone E — Last race result */}
       {result && (result.rank === 0 ? (
@@ -1674,6 +1722,31 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
   return (
     <section className="space-y-3">
 
+      {/* Treasury stats — FIRST */}
+      <div className="game-panel p-4 space-y-3">
+        <div className="pixel text-base text-white/55 uppercase tracking-widest text-center mb-3">Treasury stats</div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: "Reward pool",     value: shortNumber(ledger?.dailyActivePool ?? 0) },
+            { label: "Paid to players", value: shortNumber(ledger?.totalJumpRewardsPaid ?? 0) },
+            { label: "Total burned",    value: shortNumber(ledger?.totalTokensBurned ?? 0) },
+            { label: "Burned today",    value: shortNumber(ledger?.dailyTokensBurned ?? 0) },
+            { label: "Today's score",   value: shortNumber(dashboard?.totalDailyJumpScore ?? 0) },
+            { label: "Season total",    value: shortNumber(dashboard?.totalSeasonJumpScore ?? 0) },
+          ].map(stat => (
+            <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
+              <div className="pixel text-sm text-white/40 leading-loose">{stat.label}</div>
+              <div className="pixel text-base font-black text-yellow-300">{stat.value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-xl border border-yellow-400/18 bg-yellow-400/5 p-3 text-center">
+          <p className="pixel text-sm text-white/50 leading-loose">
+            100% of Pump.fun creator fees go to the daily active pool, split proportionally by jump score.
+          </p>
+        </div>
+      </div>
+
       {/* Auto-sync panel */}
       <div className="game-panel p-4 space-y-4">
         <div className="text-center">
@@ -1690,10 +1763,10 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
         {/* Sync stats grid */}
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: "Total syncs",     value: String(ledger?.autoSyncCount ?? 0) },
-            { label: "Jumpers today",   value: String(dashboard?.activeJumpersToday ?? 0) },
-            { label: "Total recorded",  value: shortNumber(ledger?.creatorRewardsRecorded ?? 0) },
-            { label: "Last sync",       value: syncAgeText },
+            { label: "Total syncs",    value: String(ledger?.autoSyncCount ?? 0) },
+            { label: "Jumpers today",  value: String(dashboard?.activeJumpersToday ?? 0) },
+            { label: "Total recorded", value: shortNumber(ledger?.creatorRewardsRecorded ?? 0) },
+            { label: "Last sync",      value: syncAgeText },
           ].map(stat => (
             <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
               <div className="pixel text-sm text-white/40 leading-loose">{stat.label}</div>
@@ -1762,30 +1835,6 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
         )}
       </div>
 
-      {/* Treasury stats */}
-      <div className="game-panel p-4 space-y-3">
-        <div className="pixel text-base text-white/55 uppercase tracking-widest text-center mb-3">Treasury stats</div>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: "Reward pool",   value: shortNumber(ledger?.dailyActivePool ?? 0) },
-            { label: "Paid to players", value: shortNumber(ledger?.totalJumpRewardsPaid ?? 0) },
-            { label: "Total burned",    value: shortNumber(ledger?.totalTokensBurned ?? 0) },
-            { label: "Burned today",    value: shortNumber(ledger?.dailyTokensBurned ?? 0) },
-            { label: "Today's score",   value: shortNumber(dashboard?.totalDailyJumpScore ?? 0) },
-            { label: "Season total",    value: shortNumber(dashboard?.totalSeasonJumpScore ?? 0) },
-          ].map(stat => (
-            <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
-              <div className="pixel text-sm text-white/40 leading-loose">{stat.label}</div>
-              <div className="pixel text-base font-black text-yellow-300">{stat.value}</div>
-            </div>
-          ))}
-        </div>
-        <div className="rounded-xl border border-yellow-400/18 bg-yellow-400/5 p-3 text-center">
-          <p className="pixel text-sm text-white/50 leading-loose">
-            100% of Pump.fun creator fees go to the daily active pool, split proportionally by jump score.
-          </p>
-        </div>
-      </div>
     </section>
   );
 }
