@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { settleAutoJump } from "@/lib/idle-engine";
-import { getPlayer, savePlayer } from "@/lib/repository";
+import { getPlayer } from "@/lib/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +10,5 @@ export async function GET(req: NextRequest) {
   }
 
   const player = await getPlayer(wallet);
-  if (player.initialized) {
-    await settleAutoJump(player);
-    await savePlayer(player);
-  }
   return NextResponse.json(player);
 }

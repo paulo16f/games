@@ -87,7 +87,6 @@ export async function settleAutoJump(state: PlayerState, now = Date.now()): Prom
   }
 
   if (totalJumps > 0) {
-    state.flies += Math.floor(totalJumps / 25);
     state.lastJumpSettledAt = now;
     state.dailyJumpCount += totalJumps;
     state.dailyJumpScore += totalScore;

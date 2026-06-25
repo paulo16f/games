@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, Coins, Egg, Flag, History, LayoutDashboard, Trophy, Users } from "lucide-react";
 import {
   ACTION_COSTS,
+  EGG_ODDS,
+  TOAD_DAILY_ENERGY,
   TOAD_JUMP_BUY_URL,
   TOAD_JUMP_TOKEN_SYMBOL,
+  TOAD_TEMPLATES,
   ToadKind,
 } from "@/lib/constants";
 import { PlayerState, ProjectRewardsLedger, Toad } from "@/lib/store";
@@ -63,11 +66,11 @@ interface CreatorDashboard {
 
 
 const gameTabs: Array<{ id: GameTab; label: string; Icon: typeof Activity }> = [
-  { id: "play",        label: "Activity",    Icon: Activity },
+  { id: "play",        label: "Home",        Icon: Activity },
   { id: "frogs",       label: "Toads",       Icon: Users },
   { id: "hatch",       label: "Hatch",       Icon: Egg },
   { id: "races",       label: "Races",       Icon: Flag },
-  { id: "rewards",     label: "Rewards",     Icon: Coins },
+  { id: "rewards",     label: "Earn",        Icon: Coins },
   { id: "leaderboard", label: "Ranks",       Icon: Trophy },
   { id: "seasons",     label: "Seasons",     Icon: History },
   { id: "creator",     label: "Creator",     Icon: LayoutDashboard },
@@ -306,6 +309,8 @@ function EntryScreen({
   gate: GateResult | null;
   tokenSymbol: string;
 }) {
+  const [showBoost, setShowBoost] = useState(false);
+
   return (
     <main
       className="relative min-h-screen text-white flex flex-col px-4"
@@ -324,7 +329,7 @@ function EntryScreen({
           />
         </div>
         <h1 className="pixel text-2xl text-yellow-300 sm:text-3xl">Toad Jump</h1>
-        <p className="pixel text-sm text-white/80">Idle frogs. Real tokens. On Solana.</p>
+        <p className="pixel text-sm text-white/80">Hatch toads. Keep them jumping. Earn real tokens.</p>
       </div>
 
       {/* Middle — connect card */}
@@ -362,31 +367,76 @@ function EntryScreen({
         </div>
       </div>
 
-      {/* Bottom — boost tiers */}
-      <div className="relative z-10 w-full max-w-sm mx-auto pb-8">
-        <div className="mb-3 pixel text-center text-sm text-white/70 uppercase tracking-widest">Hold tokens to boost your score</div>
-        <div className="space-y-1.5">
+      {/* Bottom — how to play first, boost tiers collapsed */}
+      <div className="relative z-10 w-full max-w-sm mx-auto pb-8 space-y-4">
+
+        {/* How to play — always visible */}
+        <div className="space-y-2">
+          <div className="pixel text-center text-sm text-white/70 uppercase tracking-widest mb-3">How to play</div>
           {[
-            { mult: "1×",   label: "No boost",  req: "0 tokens",       color: "text-white/55" },
-            { mult: "1.2×", label: "Holder",    req: "1+ tokens",      color: "text-white/75" },
-            { mult: "1.5×", label: "Stacker",   req: "100+ tokens",    color: "text-white/90" },
-            { mult: "2×",   label: "Whale",     req: "1,000+ tokens",  color: "text-yellow-200" },
-            { mult: "3×",   label: "Legend",    req: "10,000+ tokens", color: "text-yellow-300" },
-          ].map((tier) => (
-            <div key={tier.mult} className="flex items-center justify-between rounded-lg border border-white/12 bg-black/25 backdrop-blur-sm px-3 py-2.5">
-              <span className={`pixel text-sm font-black ${tier.color}`}>{tier.mult} {tier.label}</span>
-              <span className="pixel text-sm text-white/60">{tier.req}</span>
+            { step: "①", icon: "🥚", title: "Hatch a Toad", desc: "Spend 5 flies → crack an egg → get a random toad!", sub: "5 rarity tiers: Common → Legendary" },
+            { step: "②", icon: "⚡", title: "Activate it", desc: "Tap your toad → it jumps automatically!", sub: "Rarer toad = more points per hour" },
+            { step: "③", icon: "🪰", title: "Collect flies", desc: "Claim +5 free flies every 30 minutes", sub: "Need 10,000 tokens to unlock claims" },
+            { step: "④", icon: "💰", title: "Earn real tokens", desc: "Jump score = share of the daily pool", sub: "Claim straight to your Solana wallet" },
+            { step: "⑤", icon: "🏎", title: "Race!", desc: "Enter 30-min races vs other players", sub: "Win tokens or flies as prizes" },
+          ].map(item => (
+            <div key={item.step} className="flex items-start gap-3 rounded-lg border border-white/12 bg-black/25 backdrop-blur-sm px-3 py-3">
+              <div className="pixel text-base text-yellow-300/70 shrink-0 mt-0.5">{item.step}</div>
+              <div className="text-xl shrink-0">{item.icon}</div>
+              <div className="min-w-0">
+                <div className="pixel text-sm font-black text-white">{item.title}</div>
+                <div className="pixel text-sm text-white/65 leading-snug mt-0.5">{item.desc}</div>
+                <div className="pixel text-sm text-white/35 leading-snug mt-0.5">{item.sub}</div>
+              </div>
             </div>
           ))}
+          {/* Guest CTA */}
+          <div className="rounded-lg border border-yellow-400/25 bg-yellow-400/8 px-3 py-3">
+            <div className="pixel text-sm text-yellow-300 mb-2">👁 You start with 10 flies — enough to hatch 2 toads right now!</div>
+            <button
+              onClick={onPlayAsGuest}
+              className="pixel w-full rounded-lg bg-yellow-400 py-2.5 text-sm font-black text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[1px] active:shadow-none transition-all"
+            >
+              Try as Guest →
+            </button>
+          </div>
         </div>
-        <a
-          href={TOAD_JUMP_BUY_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="pixel mt-3 block text-center text-sm text-yellow-300/75 hover:text-yellow-300 transition-colors"
-        >
-          Buy {tokenSymbol} to boost →
-        </a>
+
+        {/* Score multipliers — collapsed by default */}
+        <div>
+          <button
+            onClick={() => setShowBoost(v => !v)}
+            className="pixel w-full text-center text-sm text-white/45 hover:text-white/70 transition-colors py-1"
+          >
+            {showBoost ? "▲ Hide multipliers" : "🔑 Score multipliers ▼"}
+          </button>
+
+          {showBoost && (
+            <div className="mt-2 space-y-1.5">
+              {[
+                { mult: "1×",   label: "No boost",  req: "0 tokens",       color: "text-white/55" },
+                { mult: "1.2×", label: "Holder",    req: "1+ tokens",      color: "text-white/75" },
+                { mult: "1.5×", label: "Stacker",   req: "100+ tokens",    color: "text-white/90" },
+                { mult: "2×",   label: "Whale",     req: "1,000+ tokens",  color: "text-yellow-200" },
+                { mult: "3×",   label: "Legend",    req: "10,000+ tokens", color: "text-yellow-300" },
+              ].map((tier) => (
+                <div key={tier.mult} className="flex items-center justify-between rounded-lg border border-white/12 bg-black/25 backdrop-blur-sm px-3 py-2.5">
+                  <span className={`pixel text-sm font-black ${tier.color}`}>{tier.mult} {tier.label}</span>
+                  <span className="pixel text-sm text-white/60">{tier.req}</span>
+                </div>
+              ))}
+              <a
+                href={TOAD_JUMP_BUY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pixel mt-3 block text-center text-sm text-yellow-300/75 hover:text-yellow-300 transition-colors"
+              >
+                Buy {tokenSymbol} to boost →
+              </a>
+            </div>
+          )}
+        </div>
+
       </div>
     </main>
   );
@@ -469,13 +519,13 @@ function FlyClaimStrip({
       <div className="flex items-center justify-between gap-3 mt-2">
         <span className="pixel text-base text-white/40 min-w-0 leading-loose">
           {gated
-            ? "Need tokens to unlock claims"
+            ? "🔒 Buy tokens to unlock free flies"
             : onCooldown
             ? `⏳ ${mins}:${String(secs).padStart(2, "0")} until next claim`
             : "▶ Free +5 flies ready!"}
         </span>
         <div className="flex gap-2 shrink-0">
-          {!gated && onCooldown && balance >= 1 && (
+          {!gated && onCooldown && balance >= 1_000 && (
             <button onClick={claimFliesSkip} disabled={busy}
               className="pixel text-sm rounded border border-yellow-200/35 bg-yellow-300/12 px-2.5 py-1.5 text-yellow-200 hover:bg-yellow-300/22 transition-all disabled:opacity-40">
               Skip
@@ -618,33 +668,53 @@ function PlayTab({
     <section className="space-y-3">
 
       {/* ── A: ACCOUNT STATUS ─────────────────────────────── */}
-      <div className={`rounded-xl border-2 px-4 py-3 ${economyOk ? "border-emerald-400/30 bg-emerald-400/5" : "border-red-400/30 bg-red-400/5"}`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="pixel mb-0.5 text-white/40 uppercase tracking-widest" style={{ fontSize: "8px" }}>Token balance</div>
-            <div className="pixel text-2xl font-black text-white leading-none">
-              <AnimNum value={balance} fmt={shortNumber} />
-              <span className="pixel text-sm text-white/45 ml-2">${symbol}</span>
+      {economyOk ? (
+        <div className="rounded-xl border-2 border-emerald-400/30 bg-emerald-400/5 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="pixel mb-0.5 text-white/40 uppercase tracking-widest" style={{ fontSize: "8px" }}>Token balance</div>
+              <div className="pixel text-2xl font-black text-white leading-none">
+                <AnimNum value={balance} fmt={shortNumber} />
+                <span className="pixel text-sm text-white/45 ml-2">${symbol}</span>
+              </div>
             </div>
-          </div>
-          <div className={`pixel text-sm shrink-0 rounded-lg px-2.5 py-1.5 font-black ${economyOk ? "bg-emerald-400/20 text-emerald-300 border border-emerald-400/30" : "bg-red-400/15 text-red-300 border border-red-400/25"}`}>
-            {economyOk ? "✓ ECONOMY" : "✗ LOCKED"}
+            <div className="pixel text-sm shrink-0 rounded-lg px-2.5 py-1.5 font-black bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
+              ✓ Earning Active
+            </div>
           </div>
         </div>
-        {!economyOk && (
-          <div className="flex items-center justify-between mt-2.5 gap-3">
-            <div className="pixel text-base text-red-300/70 leading-loose min-w-0">
-              Need {shortNumber(gateAmount)} ${symbol} to earn
+      ) : (
+        <div className="rounded-xl border-2 border-amber-400/30 bg-amber-400/6 px-4 py-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="pixel mb-0.5 text-white/40 uppercase tracking-widest" style={{ fontSize: "8px" }}>Token balance</div>
+              <div className="pixel text-2xl font-black text-white/60 leading-none">
+                <AnimNum value={balance} fmt={shortNumber} />
+                <span className="pixel text-sm text-white/35 ml-2">${symbol}</span>
+              </div>
             </div>
-            {gate?.configured !== false && (
-              <a href={TOAD_JUMP_BUY_URL} target="_blank" rel="noopener noreferrer"
-                className="pixel text-sm shrink-0 rounded-lg bg-yellow-400 px-3 py-1.5 text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 transition-all">
-                Buy →
-              </a>
-            )}
+            <div className="pixel text-sm shrink-0 rounded-lg px-2.5 py-1.5 font-black bg-amber-400/15 text-amber-300 border border-amber-400/25">
+              🔒 Earnings Locked
+            </div>
           </div>
-        )}
-      </div>
+          <div className="pixel text-sm text-amber-200/70 leading-loose">
+            Buy {shortNumber(gateAmount)} ${symbol} on Pump.fun to unlock:
+          </div>
+          <div className="space-y-1">
+            {["Collect flies every 30 min", "Earn from your jump score", "Race for token prizes"].map(item => (
+              <div key={item} className="pixel text-sm text-white/60 flex items-center gap-2">
+                <span className="text-emerald-400">✓</span> {item}
+              </div>
+            ))}
+          </div>
+          {gate?.configured !== false && (
+            <a href={TOAD_JUMP_BUY_URL} target="_blank" rel="noopener noreferrer"
+              className="pixel text-sm block w-full text-center rounded-lg bg-yellow-400 px-3 py-2.5 font-black text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 transition-all">
+              Buy on Pump.fun →
+            </a>
+          )}
+        </div>
+      )}
 
       {/* ── B: EARNINGS HERO ──────────────────────────────── */}
       <div className="game-panel px-4 py-5" style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(255,215,0,0.07) 0%, transparent 70%)" }}>
@@ -1407,13 +1477,13 @@ function RewardsTab({
 
       {/* Treasury overview */}
       <div className="game-panel p-4 space-y-3">
-        <div className="pixel text-base text-white/55 uppercase tracking-widest text-center">Treasury</div>
+        <div className="pixel text-base text-white/55 uppercase tracking-widest text-center">Prize Pool</div>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: "Reward pool",     value: shortNumber(dailyPool) },
-            { label: "Creator fees in", value: shortNumber(season?.projectLedger.creatorRewardsRecorded ?? 0) },
-            { label: "Total paid out",  value: shortNumber(totalPaid) },
-            { label: "Active jumpers",  value: String(season?.activePlayers ?? 0) },
+            { label: "Today's pool",          value: shortNumber(dailyPool) },
+            { label: "Pump.fun fees received", value: shortNumber(season?.projectLedger.creatorRewardsRecorded ?? 0) },
+            { label: "Paid to players",        value: shortNumber(totalPaid) },
+            { label: "Players today",          value: String(season?.activePlayers ?? 0) },
           ].map(stat => (
             <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
               <div className="pixel text-sm text-white/45 leading-loose">{stat.label}</div>
@@ -1613,7 +1683,7 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
             <span className="pixel text-base text-yellow-300">{syncAgeText}</span>
           </div>
           <p className="pixel text-sm text-white/55 leading-loose mt-3">
-            Vercel Cron runs hourly, fetches SOL transfers to the treasury wallet, and credits 100% to the active-jumper pool — no manual steps required.
+            Auto-sync runs every 15 min via cron-job.org, fetches SOL transfers to the treasury wallet, and credits 100% to the reward pool — no manual steps required.
           </p>
         </div>
 
@@ -1697,12 +1767,12 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
         <div className="pixel text-base text-white/55 uppercase tracking-widest text-center mb-3">Treasury stats</div>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: "Daily active pool", value: shortNumber(ledger?.dailyActivePool ?? 0) },
-            { label: "Rewards paid",      value: shortNumber(ledger?.totalJumpRewardsPaid ?? 0) },
-            { label: "Total burned",      value: shortNumber(ledger?.totalTokensBurned ?? 0) },
-            { label: "Burned today",      value: shortNumber(ledger?.dailyTokensBurned ?? 0) },
-            { label: "Daily jump score",  value: shortNumber(dashboard?.totalDailyJumpScore ?? 0) },
-            { label: "Season score",      value: shortNumber(dashboard?.totalSeasonJumpScore ?? 0) },
+            { label: "Reward pool",   value: shortNumber(ledger?.dailyActivePool ?? 0) },
+            { label: "Paid to players", value: shortNumber(ledger?.totalJumpRewardsPaid ?? 0) },
+            { label: "Total burned",    value: shortNumber(ledger?.totalTokensBurned ?? 0) },
+            { label: "Burned today",    value: shortNumber(ledger?.dailyTokensBurned ?? 0) },
+            { label: "Today's score",   value: shortNumber(dashboard?.totalDailyJumpScore ?? 0) },
+            { label: "Season total",    value: shortNumber(dashboard?.totalSeasonJumpScore ?? 0) },
           ].map(stat => (
             <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
               <div className="pixel text-sm text-white/40 leading-loose">{stat.label}</div>
@@ -2008,10 +2078,70 @@ const setTab = useCallback((tab: GameTab) => {
     }
   }
 
+  function simulateGuestAction(action: string, extra: Record<string, unknown> = {}): { result: Record<string, unknown> } | null {
+    if (!player) return null;
+    const p: PlayerState = { ...player, toads: player.toads.map(t => ({ ...t })) };
+
+    if (action === "open_egg") {
+      if (p.flies < ACTION_COSTS.openEgg) { setMessage(`Need ${ACTION_COSTS.openEgg} flies to hatch!`); return null; }
+      p.flies -= ACTION_COSTS.openEgg;
+      const roll = Math.random() * 100;
+      let cumulative = 0;
+      let kind: ToadKind = "swamp";
+      for (const entry of EGG_ODDS) { cumulative += entry.chance; if (roll < cumulative) { kind = entry.kind; break; } }
+      const existing = p.toads.find(t => t.kind === kind);
+      let eggReveal: EggReveal;
+      if (existing) {
+        const bonusFlies = kind === "shadow" ? 2 : 1;
+        p.flies += bonusFlies;
+        eggReveal = { toad: existing, isNew: false, bonusFlies };
+      } else {
+        const tmpl = TOAD_TEMPLATES[kind];
+        const today = new Date().toISOString().slice(0, 10);
+        const maxEnergy = TOAD_DAILY_ENERGY[kind];
+        const newToad: Toad = {
+          id: `guest-${kind}-${Date.now()}`,
+          kind, name: tmpl.name, rarity: tmpl.rarity,
+          speed: tmpl.speed, stamina: tmpl.stamina, luck: tmpl.luck, consistency: tmpl.consistency,
+          xp: 0, level: 1, skin: "Classic", energy: maxEnergy, maxEnergy, lastEnergyRefillDate: today,
+          jumps: 0, active: false, lastJumpAt: 0,
+        };
+        p.toads.push(newToad);
+        p.selectedToadId = newToad.id;
+        eggReveal = { toad: newToad, isNew: true, bonusFlies: 0 };
+      }
+      setPlayer(p);
+      return { result: { egg: { toad: eggReveal.toad, isNew: eggReveal.isNew, bonusFlies: eggReveal.bonusFlies } } };
+    }
+
+    if (action === "activate_toad") {
+      const toad = p.toads.find(t => t.id === extra.toadId);
+      if (!toad) return null;
+      toad.active = true;
+      toad.lastJumpAt = Date.now();
+      setPlayer(p);
+      return { result: { activated: true, toadId: toad.id, toadName: toad.name } };
+    }
+
+    if (action === "deactivate_toad") {
+      const toad = p.toads.find(t => t.id === extra.toadId);
+      if (!toad) return null;
+      toad.active = false;
+      setPlayer(p);
+      return { result: { deactivated: true, toadId: toad.id } };
+    }
+
+    return null;
+  }
+
   async function sendAction(action: string, extra: Record<string, unknown> = {}) {
     if (guestMode) {
-      setMessage("Connect a wallet to save progress.");
-      return null;
+      const GUEST_ACTIONS = ["open_egg", "activate_toad", "deactivate_toad"];
+      if (!GUEST_ACTIONS.includes(action)) {
+        setMessage("Connect a wallet to unlock this feature.");
+        return null;
+      }
+      return simulateGuestAction(action, extra);
     }
     if (!verifiedWallet) return null;
     setBusy(true);
