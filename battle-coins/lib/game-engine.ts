@@ -26,13 +26,15 @@ export type GameAction =
   | "select_toad"
   | "record_creator_rewards"
   | "claim_weekly_rewards"
-  | "feed_toad";
+  | "feed_toad"
+  | "set_nickname";
 
 export interface GameActionInput {
   action: GameAction;
   toadId?: string;
   amount?: number;
   creatorKey?: string;
+  nickname?: string;
 }
 
 export class GameActionError extends Error {
@@ -257,6 +259,13 @@ export async function handleGameAction(
       throw new GameActionError("Weekly token prize pool is coming in v2", 403);
     }
 
+    case "set_nickname": {
+      const name = (input.nickname ?? "").trim().slice(0, 20);
+      if (!name) throw new GameActionError("Name cannot be empty");
+      state.nickname = name;
+      return { nickname: name };
+    }
+
     case "feed_toad": {
       const toad = state.toads.find(t => t.id === input.toadId);
       if (!toad) throw new GameActionError("Toad not found", 404);
@@ -294,6 +303,7 @@ export function isGameAction(value: unknown): value is GameAction {
     value === "select_toad" ||
     value === "record_creator_rewards" ||
     value === "claim_weekly_rewards" ||
-    value === "feed_toad"
+    value === "feed_toad" ||
+    value === "set_nickname"
   );
 }

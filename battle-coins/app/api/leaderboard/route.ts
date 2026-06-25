@@ -17,6 +17,7 @@ export async function GET() {
       const topToad = [...state.toads].sort((a, b) => b.level - a.level)[0] ?? null;
       return {
         wallet: publicWallet(state.wallet),
+        nickname: state.nickname || publicWallet(state.wallet),
         dailyJumpScore: state.dailyJumpScore,
         seasonJumpScore: state.seasonJumpScore,
         lifetimeJumps: state.lifetimeJumps,

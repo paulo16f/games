@@ -28,6 +28,7 @@ interface GateResult {
 
 interface LeaderboardEntry {
   wallet: string;
+  nickname?: string;
   dailyJumpScore: number;
   seasonJumpScore: number;
   lifetimeJumps: number;
@@ -229,17 +230,35 @@ function TopHud({
   gate,
   guestMode,
   onConnectWallet,
+  onSetNickname,
 }: {
   player: PlayerState;
   gate: GateResult | null;
   guestMode?: boolean;
   onConnectWallet?: () => void;
+  onSetNickname?: (name: string) => void;
 }) {
   const balance = gate?.balance ?? player.tokenBalance;
   const gated = !gate || !(gate.gated ?? false);
   const playerLevel = Math.floor((player.totalXp ?? 0) / 1000) + 1;
   const claimReady = !player.lastFlyClaimAt || (Date.now() - player.lastFlyClaimAt) >= 30 * 60 * 1000;
   const walletShort = (gate?.wallet || player.wallet || "").replace(/(.{4}).+(.{4})$/, "$1…$2");
+  const displayName = player.nickname || walletShort;
+
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+
+  function startEdit() {
+    setNameInput(player.nickname || "");
+    setEditingName(true);
+  }
+  function commitName() {
+    const trimmed = nameInput.trim();
+    if (trimmed && trimmed !== player.nickname && onSetNickname) {
+      onSetNickname(trimmed);
+    }
+    setEditingName(false);
+  }
 
   return (
     <header className="sticky top-0 z-30 game-panel">
@@ -266,11 +285,26 @@ function TopHud({
           </div>
         ) : (
           <div className="ml-auto flex items-center gap-1.5">
-            {/* Wallet */}
-            {walletShort && (
-              <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1">
-                <span className="pixel font-mono text-white/50" style={{ fontSize: "9px" }}>{walletShort}</span>
-              </div>
+            {/* Editable name/wallet */}
+            {editingName ? (
+              <input
+                autoFocus
+                value={nameInput}
+                onChange={e => setNameInput(e.target.value.slice(0, 20))}
+                onKeyDown={e => { if (e.key === "Enter") commitName(); if (e.key === "Escape") setEditingName(false); }}
+                onBlur={commitName}
+                placeholder="Your name…"
+                className="pixel w-28 rounded-lg border border-yellow-400/60 bg-black/50 px-2 py-1 text-xs text-yellow-300 outline-none"
+              />
+            ) : (
+              <button
+                onClick={startEdit}
+                title="Set display name"
+                className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 hover:border-yellow-400/40 hover:bg-white/8 transition-colors group"
+              >
+                <span className="pixel text-white/55 group-hover:text-white/80 transition-colors" style={{ fontSize: "9px" }}>{displayName}</span>
+                <span className="pixel text-white/25 group-hover:text-yellow-300/60 transition-colors" style={{ fontSize: "9px" }}>✎</span>
+              </button>
             )}
             {/* Player level */}
             <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1">
@@ -851,8 +885,8 @@ function RacesTab({
   enterRaceEventWithToad: (toadId: string) => void;
 }) {
   const [now, setNow] = useState(Date.now());
-  const [raceChampions, setRaceChampions] = useState<{ wallet: string; wins: number; totalRaces: number; racePoints: number }[]>([]);
-  const [raceEntrants, setRaceEntrants] = useState<{ wallet: string; toadName: string; toadRarity: string; toadLevel: number }[]>([]);
+  const [raceChampions, setRaceChampions] = useState<{ wallet: string; nickname?: string; wins: number; totalRaces: number; racePoints: number }[]>([]);
+  const [raceEntrants, setRaceEntrants] = useState<{ name: string; toadName: string; toadRarity: string; toadLevel: number }[]>([]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -1010,7 +1044,7 @@ function RacesTab({
             <div className="space-y-1.5">
               {raceEntrants.map((e, i) => (
                 <div key={i} className="rounded-lg border border-white/8 bg-white/3 px-2 py-2">
-                  <div className="pixel text-xs text-white font-black truncate">{e.toadName}</div>
+                  <div className="pixel text-xs text-white font-black truncate">{e.name}</div>
                   <div className="pixel text-white/40 mt-0.5" style={{ fontSize: "9px" }}>{e.toadRarity} · Lv {e.toadLevel}</div>
                 </div>
               ))}
@@ -1043,14 +1077,16 @@ function RacesTab({
         <div className="pixel text-white/30 text-center" style={{ fontSize: "8px" }}>
           2 flies refunded if cancelled · pool carries over untouched
         </div>
-        <button
-          onClick={() => selectedToad && enterRaceEventWithToad(selectedToad.id)}
-          disabled={!canEnter || busy}
-          className={`pixel text-[13px] w-full rounded-xl py-4 transition-all disabled:opacity-50 ${enterButtonStyle}`}
-        >
-          {enterButtonLabel()}
-        </button>
       </div>
+
+      {/* Zone D — Enter button */}
+      <button
+        onClick={() => selectedToad && enterRaceEventWithToad(selectedToad.id)}
+        disabled={!canEnter || busy}
+        className={`pixel text-[13px] w-full rounded-xl py-4 transition-all disabled:opacity-50 ${enterButtonStyle}`}
+      >
+        {enterButtonLabel()}
+      </button>
 
       {/* Zone E — Last race result */}
       {result && (result.rank === 0 ? (
@@ -1122,7 +1158,7 @@ function RacesTab({
             {raceChampions.slice(0, 10).map((entry, i) => (
               <div key={entry.wallet} className="flex items-center gap-2 rounded-lg border border-white/6 bg-white/3 px-3 py-2">
                 <span className="pixel text-sm shrink-0 w-7 text-center">{podiumMedal(i)}</span>
-                <span className="pixel text-white/55 min-w-0 flex-1 truncate" style={{ fontSize: "10px" }}>{entry.wallet}</span>
+                <span className="pixel text-white/55 min-w-0 flex-1 truncate" style={{ fontSize: "10px" }}>{entry.nickname ?? entry.wallet}</span>
                 <span className="pixel font-black text-yellow-300 shrink-0" style={{ fontSize: "10px" }}>{entry.wins}W</span>
                 <span className="pixel text-white/35 shrink-0" style={{ fontSize: "9px" }}>
                   {entry.totalRaces > 0 ? `${Math.round((entry.wins / entry.totalRaces) * 100)}%` : "—"}
@@ -1594,7 +1630,7 @@ function LeaderboardTab({ leaderboard, season }: { leaderboard: LeaderboardEntry
                 <div key={entry.wallet} className={`rounded-xl border p-3 text-center ${podiumBorder(i)}`}>
                   <div className="text-2xl mb-1">{podiumMedal(i)}</div>
                   <div className={`pixel text-lg font-black ${podiumScore(i)}`}><AnimNum value={entry.dailyJumpScore} fmt={shortNumber} /></div>
-                  <div className="pixel text-sm text-white/45 mt-1 truncate">{entry.wallet}</div>
+                  <div className="pixel text-sm text-white/45 mt-1 truncate">{entry.nickname ?? entry.wallet}</div>
                   {boost.mult !== "1×" && (
                     <span className={`mt-1.5 inline-block ${boost.cls}`}>{boost.mult}</span>
                   )}
@@ -1617,7 +1653,7 @@ function LeaderboardTab({ leaderboard, season }: { leaderboard: LeaderboardEntry
                     <span className="pixel text-sm text-white/28 w-7 shrink-0">#{i + 4}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="pixel text-sm text-white/65 truncate">{entry.wallet}</span>
+                        <span className="pixel text-sm text-white/65 truncate">{entry.nickname ?? entry.wallet}</span>
                         {boost.mult !== "1×" && <span className={`shrink-0 ${boost.cls}`}>{boost.mult}</span>}
                       </div>
                       <div className="pixel text-sm text-white/35 mt-0.5">{entry.activeFrogs}/{entry.totalFrogs} frogs jumping</div>
@@ -1864,6 +1900,7 @@ function GameShell({
   guestMode,
   onConnectWallet,
   kvOk,
+  setNickname,
 }: {
   activeTab: GameTab;
   setTab: (tab: GameTab) => void;
@@ -1889,11 +1926,12 @@ function GameShell({
   guestMode?: boolean;
   onConnectWallet?: () => void;
   kvOk: boolean | null;
+  setNickname?: (name: string) => void;
 }) {
   return (
     <main className="game-shell min-h-screen px-3 pb-24 pt-3 text-white sm:px-5 xl:pb-5">
       <div className="mx-auto flex max-w-[1500px] flex-col gap-3">
-        <TopHud player={player} gate={gate} guestMode={guestMode} onConnectWallet={onConnectWallet} />
+        <TopHud player={player} gate={gate} guestMode={guestMode} onConnectWallet={onConnectWallet} onSetNickname={setNickname} />
         {kvOk === false && (
           <div className="pixel text-sm text-center rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-red-300">
             ⚠ No database — add KV_REST_API_URL + KV_REST_API_TOKEN to Vercel env vars (Upstash free tier)
@@ -1983,6 +2021,7 @@ const GUEST_PLAYER: PlayerState = {
   lastRaceWindowId: 0,
   lastRaceResult: null,
   raceHistory: [],
+  nickname: "",
   createdAt: 0,
   updatedAt: 0,
 };
@@ -2285,6 +2324,10 @@ const setTab = useCallback((tab: GameTab) => {
     }
   }
 
+  async function setNickname(name: string) {
+    await sendAction("set_nickname", { nickname: name });
+  }
+
   async function recordCreatorRewards(amount: number, key: string) {
     if (!Number.isFinite(amount) || amount <= 0) {
       setMessage("Enter a positive creator rewards amount.");
@@ -2356,6 +2399,7 @@ const setTab = useCallback((tab: GameTab) => {
       guestMode={guestMode}
       onConnectWallet={exitGuestMode}
       kvOk={kvOk}
+      setNickname={setNickname}
     />
   );
 }

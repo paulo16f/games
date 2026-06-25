@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
       toadId?: string;
       amount?: number;
       creatorKey?: string;
+      nickname?: string;
     };
 
     if (!isGameAction(body.action) || typeof body.wallet !== "string" || !body.wallet.trim()) {
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
       toadId: body.toadId,
       amount: body.amount,
       creatorKey: body.creatorKey,
+      nickname: body.nickname,
     });
     const playerData = await savePlayer(state);
 

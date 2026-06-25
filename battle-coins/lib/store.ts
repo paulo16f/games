@@ -86,6 +86,7 @@ export interface TokenRewardClaim {
 
 export interface PlayerState {
   wallet: string;
+  nickname: string;
   initialized: boolean;
   tokenBalance: number;
   flies: number;
@@ -244,6 +245,7 @@ export function defaultState(wallet: string): PlayerState {
   const now = Date.now();
   return {
     wallet,
+    nickname: "",
     initialized: false,
     tokenBalance: 0,
     flies: 0,
@@ -323,6 +325,7 @@ export function initializePlayer(state: PlayerState, tokenBalance: number): Play
 }
 
 export function migratePlayer(state: PlayerState): PlayerState {
+  state.nickname ??= "";
   state.weeklyWins ??= 0;
   state.weeklyRaces ??= 0;
   state.currentWeekId ||= currentWeekId();

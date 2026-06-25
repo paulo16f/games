@@ -9,6 +9,7 @@ export async function GET() {
   const entries = players
     .map((p) => ({
       wallet: publicWallet(p.wallet),
+      nickname: p.nickname || publicWallet(p.wallet),
       wins: p.wins,
       totalRaces: p.totalRaces,
       racePoints: p.racePoints,
