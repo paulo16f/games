@@ -1,4 +1,5 @@
 import { kvConfigured, toadJumpConfig } from "./config";
+import { ensureSchema, pgConfigured, sql } from "./db";
 import {
   defaultState,
   migratePlayer,
@@ -13,6 +14,7 @@ import {
   TokenRewardLedger,
 } from "./store";
 
+// ─── In-process race event store (serverless fallback) ───────────────────────
 declare global {
   // eslint-disable-next-line no-var
   var __toadJumpRaceEvents: Map<number, RaceEventRecord> | undefined;
@@ -22,24 +24,36 @@ if (!global.__toadJumpRaceEvents) {
 }
 const raceEventStore = global.__toadJumpRaceEvents;
 
+// ─── Redis keys (cache only) ──────────────────────────────────────────────────
 const PLAYER_INDEX_KEY = "index:players";
 const PROJECT_LEDGER_KEY = "ledger:project";
 const REWARD_LEDGER_KEY = "ledger:rewards";
+const META_CACHE_KEY = "cache:meta";
+const META_CACHE_TTL = 60;
 
+// ─── Redis REST client (cache only after Postgres migration) ─────────────────
 async function kvCommand<T>(args: Array<string | number>): Promise<T | null> {
   if (!kvConfigured()) return null;
-  const res = await fetch(toadJumpConfig.kvRestApiUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${toadJumpConfig.kvRestApiToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(args),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`KV command failed: ${res.status}`);
-  const data = await res.json();
-  return data.result as T;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(toadJumpConfig.kvRestApiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${toadJumpConfig.kvRestApiToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(args),
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.result as T;
+      }
+    } catch {
+      if (attempt === 1) return null;
+    }
+  }
+  return null;
 }
 
 function parseJson<T>(value: unknown): T | null {
@@ -52,6 +66,20 @@ function playerKey(wallet: string): string {
   return `player:${wallet}`;
 }
 
+function rewardKey(id: string): string {
+  return `reward:${id}`;
+}
+
+function raceKey(windowId: number): string {
+  return `race:${windowId}`;
+}
+
+// ─── Cache invalidation ───────────────────────────────────────────────────────
+export async function invalidateMetaCache(): Promise<void> {
+  await kvCommand(["DEL", META_CACHE_KEY]);
+}
+
+// ─── Ledger normalization ─────────────────────────────────────────────────────
 function normalizeProjectLedger(ledger: ProjectRewardsLedger): ProjectRewardsLedger {
   const today = new Date().toISOString().slice(0, 10);
   ledger.holderRewardsPool ??= 0;
@@ -87,16 +115,32 @@ function normalizeProjectLedger(ledger: ProjectRewardsLedger): ProjectRewardsLed
   return ledger;
 }
 
-function rewardKey(id: string): string {
-  return `reward:${id}`;
-}
-
+// ─── Players ──────────────────────────────────────────────────────────────────
 export async function getPlayer(wallet: string): Promise<PlayerState> {
+  if (pgConfigured()) {
+    await ensureSchema();
+    const { rows } = await sql`SELECT data FROM players WHERE wallet = ${wallet}`;
+    if (rows[0]) return migratePlayer(rows[0].data as PlayerState);
+
+    // Auto-migrate from Redis if present
+    if (kvConfigured()) {
+      const value = await kvCommand<string>(["GET", playerKey(wallet)]);
+      const redisPlayer = parseJson<PlayerState>(value);
+      if (redisPlayer?.initialized) {
+        const migrated = migratePlayer(redisPlayer);
+        await savePlayer(migrated);
+        return migrated;
+      }
+    }
+    return defaultState(wallet);
+  }
+
   if (kvConfigured()) {
     const value = await kvCommand<string>(["GET", playerKey(wallet)]);
     const player = parseJson<PlayerState>(value);
     return player ? migratePlayer(player) : defaultState(wallet);
   }
+
   const player = store.get(wallet);
   return player ? migratePlayer(player) : defaultState(wallet);
 }
@@ -111,9 +155,24 @@ export async function getOrCreatePlayer(wallet: string): Promise<PlayerState> {
 export async function savePlayer(player: PlayerState): Promise<PlayerState> {
   migratePlayer(player);
   player.updatedAt = Date.now();
+
+  if (pgConfigured()) {
+    await ensureSchema();
+    const data = JSON.stringify(player);
+    await sql`
+      INSERT INTO players (wallet, data, updated_at)
+      VALUES (${player.wallet}, ${data}::jsonb, NOW())
+      ON CONFLICT (wallet) DO UPDATE
+      SET data = ${data}::jsonb, updated_at = NOW()
+    `;
+    return player;
+  }
+
   if (kvConfigured()) {
     await kvCommand(["SET", playerKey(player.wallet), JSON.stringify(player)]);
-    await kvCommand(["SADD", PLAYER_INDEX_KEY, player.wallet]);
+    if (player.initialized) {
+      await kvCommand(["SADD", PLAYER_INDEX_KEY, player.wallet]);
+    }
   } else {
     store.set(player.wallet, player);
   }
@@ -121,15 +180,33 @@ export async function savePlayer(player: PlayerState): Promise<PlayerState> {
 }
 
 export async function listPlayers(): Promise<PlayerState[]> {
+  if (pgConfigured()) {
+    await ensureSchema();
+    const { rows } = await sql`
+      SELECT data FROM players
+      WHERE (data->>'initialized')::boolean = true
+    `;
+    return rows.map((r) => migratePlayer(r.data as PlayerState));
+  }
+
   if (kvConfigured()) {
     const wallets = (await kvCommand<string[]>(["SMEMBERS", PLAYER_INDEX_KEY])) ?? [];
-    const players = await Promise.all(wallets.map((wallet) => getPlayer(wallet)));
+    const players = await Promise.all(wallets.map((w) => getPlayer(w)));
     return players.map(migratePlayer);
   }
+
   return [...store.values()].map(migratePlayer);
 }
 
+// ─── Project Ledger ───────────────────────────────────────────────────────────
 export async function getLedger(): Promise<ProjectRewardsLedger> {
+  if (pgConfigured()) {
+    await ensureSchema();
+    const { rows } = await sql`SELECT data FROM ledger WHERE id = 'project'`;
+    if (rows[0]) return normalizeProjectLedger(rows[0].data as ProjectRewardsLedger);
+    return normalizeProjectLedger({ ...projectLedger });
+  }
+
   if (kvConfigured()) {
     const value = await kvCommand<string>(["GET", PROJECT_LEDGER_KEY]);
     const ledger = parseJson<ProjectRewardsLedger>(value);
@@ -140,36 +217,34 @@ export async function getLedger(): Promise<ProjectRewardsLedger> {
 
 export async function saveLedger(ledger: ProjectRewardsLedger): Promise<ProjectRewardsLedger> {
   normalizeProjectLedger(ledger);
+
+  if (pgConfigured()) {
+    await ensureSchema();
+    const data = JSON.stringify(ledger);
+    await sql`
+      INSERT INTO ledger (id, data) VALUES ('project', ${data}::jsonb)
+      ON CONFLICT (id) DO UPDATE SET data = ${data}::jsonb
+    `;
+    return ledger;
+  }
+
   if (kvConfigured()) {
     await kvCommand(["SET", PROJECT_LEDGER_KEY, JSON.stringify(ledger)]);
   } else {
-    projectLedger.holderRewardsPool = ledger.holderRewardsPool;
-    projectLedger.seasonPrizePool = ledger.seasonPrizePool;
-    projectLedger.buybackBurnPool = ledger.buybackBurnPool;
-    projectLedger.developmentPool = ledger.developmentPool;
-    projectLedger.totalReturnedToProject = ledger.totalReturnedToProject;
-    projectLedger.externalAmount = ledger.externalAmount;
-    projectLedger.creatorRewardsRecorded = ledger.creatorRewardsRecorded;
-    projectLedger.dailyActivePool = ledger.dailyActivePool;
-    projectLedger.seasonLeaderboardPool = ledger.seasonLeaderboardPool;
-    projectLedger.reservePool = ledger.reservePool;
-    projectLedger.totalJumpRewardsPaid = ledger.totalJumpRewardsPaid;
-    projectLedger.dailyJumpScoreTotal = ledger.dailyJumpScoreTotal;
-    projectLedger.seasonJumpScoreTotal = ledger.seasonJumpScoreTotal;
-    projectLedger.dailyJumpDay = ledger.dailyJumpDay;
-    projectLedger.lastProcessedSignature = ledger.lastProcessedSignature;
-    projectLedger.lastAutoSyncAt = ledger.lastAutoSyncAt;
-    projectLedger.autoSyncCount = ledger.autoSyncCount;
-    projectLedger.totalTokensBurned = ledger.totalTokensBurned;
-    projectLedger.dailyTokensBurned = ledger.dailyTokensBurned;
-    projectLedger.dailyBurnDay = ledger.dailyBurnDay;
-    projectLedger.racePool = ledger.racePool;
-    projectLedger.totalRacePrizesPaid = ledger.totalRacePrizesPaid;
+    Object.assign(projectLedger, ledger);
   }
   return ledger;
 }
 
+// ─── Reward Ledger ────────────────────────────────────────────────────────────
 export async function getRewardLedger(): Promise<TokenRewardLedger> {
+  if (pgConfigured()) {
+    await ensureSchema();
+    const { rows } = await sql`SELECT data FROM ledger WHERE id = 'rewards'`;
+    if (rows[0]) return rows[0].data as TokenRewardLedger;
+    return { ...tokenRewardLedger };
+  }
+
   if (kvConfigured()) {
     const value = await kvCommand<string>(["GET", REWARD_LEDGER_KEY]);
     const ledger = parseJson<TokenRewardLedger>(value);
@@ -179,19 +254,32 @@ export async function getRewardLedger(): Promise<TokenRewardLedger> {
 }
 
 export async function saveRewardLedger(ledger: TokenRewardLedger): Promise<TokenRewardLedger> {
+  if (pgConfigured()) {
+    await ensureSchema();
+    const data = JSON.stringify(ledger);
+    await sql`
+      INSERT INTO ledger (id, data) VALUES ('rewards', ${data}::jsonb)
+      ON CONFLICT (id) DO UPDATE SET data = ${data}::jsonb
+    `;
+    return ledger;
+  }
+
   if (kvConfigured()) {
     await kvCommand(["SET", REWARD_LEDGER_KEY, JSON.stringify(ledger)]);
   } else {
-    tokenRewardLedger.dailyPoolRemaining = ledger.dailyPoolRemaining;
-    tokenRewardLedger.dailyClaimCount = ledger.dailyClaimCount;
-    tokenRewardLedger.dailyClaimDay = ledger.dailyClaimDay;
-    tokenRewardLedger.totalTokenRewardsPaid = ledger.totalTokenRewardsPaid;
-    tokenRewardLedger.failedPayouts = ledger.failedPayouts;
+    Object.assign(tokenRewardLedger, ledger);
   }
   return ledger;
 }
 
+// ─── Reward Claims ────────────────────────────────────────────────────────────
 export async function getRewardClaim(id: string): Promise<TokenRewardClaim | null> {
+  if (pgConfigured()) {
+    await ensureSchema();
+    const { rows } = await sql`SELECT data FROM reward_claims WHERE id = ${id}`;
+    return rows[0]?.data ?? null;
+  }
+
   if (kvConfigured()) {
     const value = await kvCommand<string>(["GET", rewardKey(id)]);
     return parseJson<TokenRewardClaim>(value);
@@ -201,6 +289,19 @@ export async function getRewardClaim(id: string): Promise<TokenRewardClaim | nul
 
 export async function saveRewardClaim(claim: TokenRewardClaim): Promise<TokenRewardClaim> {
   claim.updatedAt = Date.now();
+
+  if (pgConfigured()) {
+    await ensureSchema();
+    const data = JSON.stringify(claim);
+    await sql`
+      INSERT INTO reward_claims (id, data, updated_at)
+      VALUES (${claim.id}, ${data}::jsonb, NOW())
+      ON CONFLICT (id) DO UPDATE
+      SET data = ${data}::jsonb, updated_at = NOW()
+    `;
+    return claim;
+  }
+
   if (kvConfigured()) {
     await kvCommand(["SET", rewardKey(claim.id), JSON.stringify(claim)]);
   } else {
@@ -213,11 +314,14 @@ export async function latestRewardClaim(player: PlayerState): Promise<TokenRewar
   return player.latestRewardClaimId ? getRewardClaim(player.latestRewardClaimId) : null;
 }
 
-function raceKey(windowId: number): string {
-  return `race:${windowId}`;
-}
-
+// ─── Race Events ──────────────────────────────────────────────────────────────
 export async function getRaceEvent(windowId: number): Promise<RaceEventRecord | null> {
+  if (pgConfigured()) {
+    await ensureSchema();
+    const { rows } = await sql`SELECT data FROM race_events WHERE window_id = ${windowId}`;
+    return rows[0]?.data ?? null;
+  }
+
   if (kvConfigured()) {
     const value = await kvCommand<string>(["GET", raceKey(windowId)]);
     return parseJson<RaceEventRecord>(value);
@@ -226,9 +330,35 @@ export async function getRaceEvent(windowId: number): Promise<RaceEventRecord | 
 }
 
 export async function saveRaceEvent(event: RaceEventRecord): Promise<void> {
+  if (pgConfigured()) {
+    await ensureSchema();
+    const data = JSON.stringify(event);
+    await sql`
+      INSERT INTO race_events (window_id, data, expires_at)
+      VALUES (${event.windowId}, ${data}::jsonb, NOW() + INTERVAL '7 days')
+      ON CONFLICT (window_id) DO UPDATE
+      SET data = ${data}::jsonb
+    `;
+    return;
+  }
+
   if (kvConfigured()) {
     await kvCommand(["SET", raceKey(event.windowId), JSON.stringify(event), "EX", String(7 * 24 * 3600)]);
   } else {
     raceEventStore.set(event.windowId, event);
   }
 }
+
+// ─── Meta cache (Redis only — short-lived) ────────────────────────────────────
+export async function getMetaCache(): Promise<unknown | null> {
+  if (!kvConfigured()) return null;
+  const raw = await kvCommand<string>(["GET", META_CACHE_KEY]);
+  return raw ? parseJson<unknown>(raw) : null;
+}
+
+export async function saveMetaCache(data: unknown): Promise<void> {
+  if (!kvConfigured()) return;
+  await kvCommand(["SET", META_CACHE_KEY, JSON.stringify(data), "EX", String(META_CACHE_TTL)]);
+}
+
+export { publicWallet } from "./store";

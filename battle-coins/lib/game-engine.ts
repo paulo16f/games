@@ -3,8 +3,8 @@ import { toadJumpConfig } from "./config";
 import { openEgg } from "./gacha-engine";
 import { settleAutoJump } from "./idle-engine";
 import { getLedger, getRaceEvent, saveRaceEvent, saveLedger } from "./repository";
-import { enterRace, resolveRaceEvent } from "./race-engine";
-import { claim24hReward, payRacePrize } from "./reward-engine";
+import { enterRace } from "./race-engine";
+import { claim24hReward } from "./reward-engine";
 import {
   awardToadXp,
   initializePlayer,
@@ -53,64 +53,25 @@ function ensureInitialized(state: PlayerState, gate: TokenGateResult): void {
 
 async function maybeFinalizeRace(state: PlayerState): Promise<void> {
   if (!state.lastRaceWindowId) return;
-  const event = await getRaceEvent(state.lastRaceWindowId);
-  if (!event || event.resolved || Date.now() < event.endsAt) return;
+  const endsAt = (state.lastRaceWindowId + 1) * 1_800_000;
+  if (Date.now() < endsAt) return;
 
-  // Cancel and refund if fewer than 3 real players entered
-  if (event.entrants.length < 3) {
-    state.flies += 2;
+  const event = await getRaceEvent(state.lastRaceWindowId);
+
+  // If the cron already resolved and paid everyone, just clear the window ID
+  if (event?.resolved) {
     state.lastRaceWindowId = 0;
-    state.lastRaceResult = { rank: 0, score: 0, tokensAwarded: 0, fliesAwarded: 2, cancelled: true };
     return;
   }
 
-  const ledger = await getLedger();
-  const resolved = resolveRaceEvent(event, ledger);
-  await saveRaceEvent(resolved);
-  await saveLedger(ledger);
-
-  const myEntrant = resolved.entrants.find((e) => e.wallet === state.wallet);
-  const myResult = resolved.results?.find((r) => r.wallet === state.wallet);
-  if (myResult) {
-    state.lastRaceResult = {
-      rank: myResult.rank,
-      score: myResult.score,
-      tokensAwarded: myResult.tokensAwarded,
-      fliesAwarded: myResult.fliesAwarded,
-      toadName: myEntrant?.toadSnapshot.name,
-    };
-    state.raceHistory = [
-      {
-        rank: myResult.rank,
-        score: myResult.score,
-        tokensAwarded: myResult.tokensAwarded,
-        fliesAwarded: myResult.fliesAwarded,
-        toadName: myEntrant?.toadSnapshot.name ?? "",
-        windowId: event.windowId,
-        timestamp: Date.now(),
-      },
-      ...(state.raceHistory ?? []),
-    ].slice(0, 20);
-    if (myResult.tokensAwarded > 0) {
-      const tx = await payRacePrize(state.wallet, myResult.tokensAwarded, ledger);
-      if (!tx) {
-        // Token prize below minimum or transfer failed — give flies instead
-        const flyFallback = myResult.rank === 1 ? 4 : myResult.rank === 2 ? 2 : 1;
-        state.flies += flyFallback;
-        if (state.lastRaceResult) {
-          state.lastRaceResult.tokensAwarded = 0;
-          state.lastRaceResult.fliesAwarded = flyFallback;
-        }
-        if (state.raceHistory.length > 0) {
-          state.raceHistory[0].tokensAwarded = 0;
-          state.raceHistory[0].fliesAwarded = flyFallback;
-        }
-      }
-    } else if (myResult.fliesAwarded > 0) {
-      state.flies += myResult.fliesAwarded;
-    }
+  // Cancelled — not enough players (give cron 2 minutes grace to run first)
+  const gracePeriod = endsAt + 2 * 60_000;
+  if (Date.now() > gracePeriod && (!event || event.entrants.length < 3)) {
+    state.flies += 2;
+    state.lastRaceWindowId = 0;
+    state.lastRaceResult = { rank: 0, score: 0, tokensAwarded: 0, fliesAwarded: 2, cancelled: true };
   }
-  state.lastRaceWindowId = 0;
+  // Otherwise: race ended but cron hasn't settled yet — wait for next poll
 }
 
 export async function handleGameAction(
@@ -216,6 +177,7 @@ export async function handleGameAction(
     }
 
     case "enter_race_event": {
+      if (!gate.gated) throw new GameActionError("Tokens required to enter races — buy on Pump.fun");
       if (state.flies < 2) throw new GameActionError("Need 2 flies to enter the race");
       const activeToad = input.toadId
         ? state.toads.find((t) => t.id === input.toadId)

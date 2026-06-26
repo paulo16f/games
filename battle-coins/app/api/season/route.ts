@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { settleAutoJump } from "@/lib/idle-engine";
-import { getLedger, getRewardLedger, listPlayers, savePlayer } from "@/lib/repository";
+import { getLedger, getRewardLedger, listPlayers } from "@/lib/repository";
 import { currentWeekId, previousWeekId } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const players = (await listPlayers()).filter((state) => state.initialized);
-  await Promise.all(players.map(async (state) => {
-    await settleAutoJump(state);
-    await savePlayer(state);
-  }));
   const current = currentWeekId();
   return NextResponse.json({
     activePlayers: players.length,

@@ -124,6 +124,7 @@ export interface PlayerState {
   lastRaceWindowId: number;
   lastRaceResult: { rank: number; score: number; tokensAwarded: number; fliesAwarded: number; toadName?: string; cancelled?: boolean } | null;
   raceHistory: Array<{ rank: number; score: number; tokensAwarded: number; fliesAwarded: number; toadName: string; windowId: number; timestamp: number }>;
+  lastAutoPaidDate: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -283,6 +284,7 @@ export function defaultState(wallet: string): PlayerState {
     lastRaceWindowId: 0,
     lastRaceResult: null,
     raceHistory: [],
+    lastAutoPaidDate: "",
     createdAt: now,
     updatedAt: now,
   };
@@ -349,6 +351,7 @@ export function migratePlayer(state: PlayerState): PlayerState {
   state.lastRaceWindowId ??= 0;
   state.lastRaceResult ??= null;
   state.raceHistory ??= [];
+  state.lastAutoPaidDate ??= "";
 
   const today = new Date().toISOString().slice(0, 10);
   if (state.dailyJumpDay !== today) {

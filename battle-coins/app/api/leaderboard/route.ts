@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { settleAutoJump } from "@/lib/idle-engine";
-import { listPlayers, savePlayer } from "@/lib/repository";
+import { listPlayers } from "@/lib/repository";
 import { publicWallet } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const players = (await listPlayers()).filter((state) => state.initialized);
-  await Promise.all(players.map(async (state) => {
-    await settleAutoJump(state);
-    await savePlayer(state);
-  }));
   const entries = players
     .map((state) => {
       const activeFrogs = state.toads.filter(t => t.active).length;

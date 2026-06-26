@@ -15,6 +15,8 @@ import { PlayerState, ProjectRewardsLedger, TokenRewardClaim, TokenRewardLedger 
 import { TokenGateResult } from "./token-gate";
 import { burnAndTransfer } from "./treasury-transfer";
 
+export { rankMultiplier };
+
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -229,6 +231,85 @@ export async function rewardStatus(state: PlayerState) {
 
 export async function getRewardClaimById(id: string): Promise<TokenRewardClaim | null> {
   return getRewardClaim(id);
+}
+
+export function computePlayerReward(
+  player: PlayerState,
+  allPlayers: PlayerState[],
+  projectLedger: ProjectRewardsLedger
+): number {
+  if (player.dailyJumpScore <= 0 || projectLedger.dailyActivePool <= 0) return 0;
+  const sorted = allPlayers
+    .filter((p) => p.initialized && p.dailyJumpScore > 0)
+    .sort((a, b) => b.dailyJumpScore - a.dailyJumpScore);
+  const rankIdx = sorted.findIndex((p) => p.wallet === player.wallet);
+  if (rankIdx === -1) return 0;
+  const rank = rankIdx + 1;
+  const weightedTotal = sorted.reduce(
+    (sum, p, idx) => sum + p.dailyJumpScore * rankMultiplier(idx + 1),
+    0
+  );
+  if (weightedTotal <= 0) return 0;
+  const share = (player.dailyJumpScore * rankMultiplier(rank)) / weightedTotal;
+  return Math.min(
+    toadJumpConfig.dailyTokenRewardAmount,
+    Math.floor(projectLedger.dailyActivePool * share * 100) / 100
+  );
+}
+
+export async function autoDistributeRewards(): Promise<{ paid: number; skipped: number; failed: number }> {
+  const today = new Date().toISOString().slice(0, 10);
+  const allPlayers = await listPlayers();
+  const projectLedger = await getLedger();
+  const rewardLedger = normalizeLedger(await getRewardLedger());
+
+  let paid = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const player of allPlayers) {
+    if (!player.initialized || player.dailyJumpScore <= 0) { skipped++; continue; }
+    if (player.lastAutoPaidDate === today) { skipped++; continue; }
+    if (projectLedger.dailyActivePool <= 0) { skipped++; continue; }
+
+    const amount = computePlayerReward(player, allPlayers, projectLedger);
+    const now = Date.now();
+    const id = `auto:${player.wallet}:${today}`;
+
+    const claim: TokenRewardClaim = {
+      id,
+      wallet: player.wallet,
+      claimPeriodId: `auto:${today}`,
+      status: "pending",
+      amount,
+      netAmount: 0,
+      burnedAmount: 0,
+      fliesGranted: DAILY_FLIES,
+      holderBonus: 0,
+      txSignature: null,
+      error: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    try {
+      await saveRewardClaim(claim);
+      const paid_claim = await payClaim(claim, rewardLedger, projectLedger);
+      player.flies += DAILY_FLIES;
+      player.lastAutoPaidDate = today;
+      player.lastDailyClaimDate = today;
+      player.latestRewardClaimId = id;
+      await savePlayer(player);
+      if (paid_claim.status === "paid") paid++;
+      else { failed++; }
+    } catch {
+      failed++;
+    }
+  }
+
+  await saveRewardLedger(rewardLedger);
+  await saveLedger(projectLedger);
+  return { paid, skipped, failed };
 }
 
 export async function payRacePrize(

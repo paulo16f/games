@@ -32,6 +32,7 @@ export const toadJumpConfig = {
   rewardClaimCooldownMs: Number(process.env.REWARD_CLAIM_COOLDOWN_MS || 30 * 60 * 1000),
   kvRestApiUrl: process.env.KV_REST_API_URL || "",
   kvRestApiToken: process.env.KV_REST_API_TOKEN || "",
+  cronSecret: process.env.CRON_SECRET || "",
   isProduction: process.env.NODE_ENV === "production",
 };
 

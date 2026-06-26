@@ -2,9 +2,10 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { toadJumpConfig } from "@/lib/config";
 import { getLedger, saveLedger } from "@/lib/repository";
+import { autoDistributeRewards } from "@/lib/reward-engine";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 interface SolanaSignatureInfo {
   signature: string;
@@ -81,7 +82,8 @@ export async function GET(req: NextRequest) {
     ledger.lastAutoSyncAt = Date.now();
     ledger.autoSyncCount += 1;
     await saveLedger(ledger);
-    return NextResponse.json({ synced: 0, totalSol: 0, noNewTransactions: true });
+    const distribution = await autoDistributeRewards();
+    return NextResponse.json({ synced: 0, totalSol: 0, noNewTransactions: true, distribution });
   }
 
   const validSigs = signatures.filter((s) => !s.err);
@@ -145,11 +147,15 @@ export async function GET(req: NextRequest) {
 
   await saveLedger(ledger);
 
+  // Auto-distribute daily rewards to all active players
+  const distribution = await autoDistributeRewards();
+
   return NextResponse.json({
     synced: processedCount,
     totalSol,
     signatures: signatures.length,
     lastProcessedSignature: newestSignature,
     autoSyncCount: ledger.autoSyncCount,
+    distribution,
   });
 }
