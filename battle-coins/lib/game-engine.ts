@@ -128,6 +128,7 @@ export async function handleGameAction(
 
     case "claim_flies_skip": {
       if ((state.tokenBalance ?? 0) < 1_000) throw new GameActionError("Need 1,000 tokens to skip cooldown");
+      state.tokenBalance = (state.tokenBalance ?? 0) - 1_000;
       state.flies += 5;
       state.lastFlyClaimAt = Date.now();
       return { fliesAwarded: 5 };

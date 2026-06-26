@@ -1,6 +1,6 @@
-import { toadJumpConfig } from "./config";
 import { getLedger, saveLedger } from "./repository";
 import { awardToadXp, currentWeekId, PlayerState, Toad } from "./store";
+import { RARITY_CYCLE_MS } from "./constants";
 
 export interface JumpSettlement {
   settled: boolean;
@@ -10,19 +10,11 @@ export interface JumpSettlement {
   nextJumpAt: number;
 }
 
-const JUMP_SPEED: Record<string, number> = {
-  swamp:   1,
-  poison:  1.35,
-  crystal: 0.9,
-  shadow:  1,
-  emperor: 1.65,
-};
-
 function tokenBoostMultiplier(balance: number): number {
-  if (balance >= 10_000) return 3.0;
-  if (balance >= 1_000)  return 2.0;
-  if (balance >= 100)    return 1.5;
-  if (balance >= 1)      return 1.2;
+  if (balance >= 10_000) return 1.5;
+  if (balance >= 1_000)  return 1.3;
+  if (balance >= 100)    return 1.15;
+  if (balance >= 1)      return 1.05;
   return 1.0;
 }
 
@@ -31,18 +23,14 @@ function todayKey(): string {
 }
 
 function jumpIntervalForToad(toad: Toad): number {
-  const speed = JUMP_SPEED[toad.kind] ?? 1;
-  return Math.max(60_000, Math.floor(toadJumpConfig.autoJumpIntervalMs / speed));
+  return RARITY_CYCLE_MS[toad.rarity] ?? 45_000;
 }
 
 function toadJumpScorePerJump(toad: Toad): number {
-  const base =
-    toad.speed * 0.34 +
-    toad.stamina * 0.24 +
-    toad.consistency * 0.24 +
-    toad.luck * 0.08 +
-    toad.level * 2;
-  return Math.max(1, Math.round(base / 10));
+  return Math.max(1, Math.round(
+    (toad.speed * 0.35 + toad.stamina * 0.25 + toad.luck * 0.20 + toad.consistency * 0.20) / 10
+    + (toad.level - 1) * 1.5
+  ));
 }
 
 export async function settleAutoJump(state: PlayerState, now = Date.now()): Promise<JumpSettlement> {
@@ -67,7 +55,7 @@ export async function settleAutoJump(state: PlayerState, now = Date.now()): Prom
   const boost = tokenBoostMultiplier(state.tokenBalance);
   let totalJumps = 0;
   let totalScore = 0;
-  let nextJumpAt = now + toadJumpConfig.autoJumpIntervalMs;
+  let nextJumpAt = now + 45_000;
 
   for (const toad of state.toads) {
     if (!toad.active) continue;

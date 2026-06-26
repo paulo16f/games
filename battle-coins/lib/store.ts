@@ -387,8 +387,8 @@ export function migratePlayer(state: PlayerState): PlayerState {
     toad.lastEnergyRefillDate ||= new Date().toISOString().slice(0, 10);
     toad.active ??= false;
     toad.lastJumpAt ??= 0;
-    // Seed from XP history: total XP spent = 25*(level-1)*level/2 + residual xp
-    const xpJumps = Math.round(25 * ((toad.level ?? 1) - 1) * (toad.level ?? 1) / 2) + (toad.xp ?? 0);
+    // Seed from XP history: total XP spent = 50*(level-1)*level/2 + residual xp
+    const xpJumps = Math.round(50 * ((toad.level ?? 1) - 1) * (toad.level ?? 1) / 2) + (toad.xp ?? 0);
     toad.jumps = Math.max(toad.jumps ?? 0, xpJumps);
   }
 
@@ -429,8 +429,8 @@ export const TOAD_MAX_LEVEL = 10;
 export function awardToadXp(toad: Toad, xp: number): void {
   if (toad.level >= TOAD_MAX_LEVEL) { toad.xp = 0; return; }
   toad.xp += xp;
-  while (toad.xp >= toad.level * 25 && toad.level < TOAD_MAX_LEVEL) {
-    toad.xp -= toad.level * 25;
+  while (toad.xp >= toad.level * 50 && toad.level < TOAD_MAX_LEVEL) {
+    toad.xp -= toad.level * 50;
     toad.level += 1;
     toad.speed += 2;
     toad.stamina += 2;
