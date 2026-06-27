@@ -45,6 +45,9 @@ async function rpcCall<T>(url: string, body: unknown): Promise<T | null> {
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers.get("authorization");
+  if (toadJumpConfig.isProduction && !cronSecret) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 503 });
+  }
   if (cronSecret) {
     const provided = authHeader?.replace("Bearer ", "") ?? "";
     const secretBuf = Buffer.from(cronSecret);
@@ -134,11 +137,8 @@ export async function GET(req: NextRequest) {
   const newestSignature = signatures[0].signature;
 
   if (totalSol > 0) {
-    ledger.creatorRewardsRecorded += totalSol;
-    ledger.dailyActivePool += totalSol;
-    ledger.holderRewardsPool += totalSol;
+    ledger.creatorRewardsSolRecorded = (ledger.creatorRewardsSolRecorded ?? 0) + totalSol;
     ledger.totalReturnedToProject += totalSol;
-    ledger.racePool += totalSol * 0.20;
   }
 
   ledger.lastProcessedSignature = newestSignature;

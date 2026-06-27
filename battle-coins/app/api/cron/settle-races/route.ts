@@ -9,6 +9,9 @@ export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
+  if (toadJumpConfig.isProduction && !toadJumpConfig.cronSecret) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 503 });
+  }
   if (toadJumpConfig.cronSecret && auth !== `Bearer ${toadJumpConfig.cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

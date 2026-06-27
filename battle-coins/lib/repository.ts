@@ -1,9 +1,11 @@
-import { kvConfigured, toadJumpConfig } from "./config";
+import { kvConfigured, ProductionReadinessError, toadJumpConfig } from "./config";
 import { ensureSchema, pgConfigured, sql } from "./db";
 import {
   defaultState,
   migratePlayer,
   PlayerState,
+  PaymentIntent,
+  paymentIntents,
   projectLedger,
   ProjectRewardsLedger,
   RaceEventRecord,
@@ -30,6 +32,12 @@ const PROJECT_LEDGER_KEY = "ledger:project";
 const REWARD_LEDGER_KEY = "ledger:rewards";
 const META_CACHE_KEY = "cache:meta";
 const META_CACHE_TTL = 60;
+
+function requireProductionPersistence(): void {
+  if (toadJumpConfig.isProduction && !pgConfigured()) {
+    throw new ProductionReadinessError("Vercel Postgres is required in production");
+  }
+}
 
 // ─── Redis REST client (cache only after Postgres migration) ─────────────────
 async function kvCommand<T>(args: Array<string | number>): Promise<T | null> {
@@ -70,6 +78,10 @@ function rewardKey(id: string): string {
   return `reward:${id}`;
 }
 
+function paymentIntentKey(id: string): string {
+  return `payment:${id}`;
+}
+
 function raceKey(windowId: number): string {
   return `race:${windowId}`;
 }
@@ -89,6 +101,8 @@ function normalizeProjectLedger(ledger: ProjectRewardsLedger): ProjectRewardsLed
   ledger.totalReturnedToProject ??= 0;
   ledger.externalAmount ??= 0;
   ledger.creatorRewardsRecorded ??= 0;
+  ledger.creatorRewardsSolRecorded ??= 0;
+  ledger.tokenRewardsFunded ??= 0;
   ledger.dailyActivePool ??= ledger.holderRewardsPool ?? 0;
   ledger.seasonLeaderboardPool ??= ledger.seasonPrizePool ?? 0;
   ledger.reservePool ??= ledger.buybackBurnPool ?? 0;
@@ -117,6 +131,7 @@ function normalizeProjectLedger(ledger: ProjectRewardsLedger): ProjectRewardsLed
 
 // ─── Players ──────────────────────────────────────────────────────────────────
 export async function getPlayer(wallet: string): Promise<PlayerState> {
+  requireProductionPersistence();
   if (pgConfigured()) {
     await ensureSchema();
     const { rows } = await sql`SELECT data FROM players WHERE wallet = ${wallet}`;
@@ -153,6 +168,7 @@ export async function getOrCreatePlayer(wallet: string): Promise<PlayerState> {
 }
 
 export async function savePlayer(player: PlayerState): Promise<PlayerState> {
+  requireProductionPersistence();
   migratePlayer(player);
   player.updatedAt = Date.now();
 
@@ -180,6 +196,7 @@ export async function savePlayer(player: PlayerState): Promise<PlayerState> {
 }
 
 export async function listPlayers(): Promise<PlayerState[]> {
+  requireProductionPersistence();
   if (pgConfigured()) {
     await ensureSchema();
     const { rows } = await sql`
@@ -200,6 +217,7 @@ export async function listPlayers(): Promise<PlayerState[]> {
 
 // ─── Project Ledger ───────────────────────────────────────────────────────────
 export async function getLedger(): Promise<ProjectRewardsLedger> {
+  requireProductionPersistence();
   if (pgConfigured()) {
     await ensureSchema();
     const { rows } = await sql`SELECT data FROM ledger WHERE id = 'project'`;
@@ -216,6 +234,7 @@ export async function getLedger(): Promise<ProjectRewardsLedger> {
 }
 
 export async function saveLedger(ledger: ProjectRewardsLedger): Promise<ProjectRewardsLedger> {
+  requireProductionPersistence();
   normalizeProjectLedger(ledger);
 
   if (pgConfigured()) {
@@ -238,6 +257,7 @@ export async function saveLedger(ledger: ProjectRewardsLedger): Promise<ProjectR
 
 // ─── Reward Ledger ────────────────────────────────────────────────────────────
 export async function getRewardLedger(): Promise<TokenRewardLedger> {
+  requireProductionPersistence();
   if (pgConfigured()) {
     await ensureSchema();
     const { rows } = await sql`SELECT data FROM ledger WHERE id = 'rewards'`;
@@ -254,6 +274,7 @@ export async function getRewardLedger(): Promise<TokenRewardLedger> {
 }
 
 export async function saveRewardLedger(ledger: TokenRewardLedger): Promise<TokenRewardLedger> {
+  requireProductionPersistence();
   if (pgConfigured()) {
     await ensureSchema();
     const data = JSON.stringify(ledger);
@@ -274,6 +295,7 @@ export async function saveRewardLedger(ledger: TokenRewardLedger): Promise<Token
 
 // ─── Reward Claims ────────────────────────────────────────────────────────────
 export async function getRewardClaim(id: string): Promise<TokenRewardClaim | null> {
+  requireProductionPersistence();
   if (pgConfigured()) {
     await ensureSchema();
     const { rows } = await sql`SELECT data FROM reward_claims WHERE id = ${id}`;
@@ -288,6 +310,7 @@ export async function getRewardClaim(id: string): Promise<TokenRewardClaim | nul
 }
 
 export async function saveRewardClaim(claim: TokenRewardClaim): Promise<TokenRewardClaim> {
+  requireProductionPersistence();
   claim.updatedAt = Date.now();
 
   if (pgConfigured()) {
@@ -314,8 +337,63 @@ export async function latestRewardClaim(player: PlayerState): Promise<TokenRewar
   return player.latestRewardClaimId ? getRewardClaim(player.latestRewardClaimId) : null;
 }
 
+export async function getPaymentIntent(id: string): Promise<PaymentIntent | null> {
+  requireProductionPersistence();
+  if (pgConfigured()) {
+    await ensureSchema();
+    const { rows } = await sql`SELECT data FROM payment_intents WHERE id = ${id}`;
+    return rows[0]?.data ?? null;
+  }
+
+  if (kvConfigured()) {
+    const value = await kvCommand<string>(["GET", paymentIntentKey(id)]);
+    return parseJson<PaymentIntent>(value);
+  }
+  return paymentIntents.get(id) ?? null;
+}
+
+export async function getPaymentIntentBySignature(signature: string): Promise<PaymentIntent | null> {
+  requireProductionPersistence();
+  if (pgConfigured()) {
+    await ensureSchema();
+    const { rows } = await sql`SELECT data FROM payment_intents WHERE signature = ${signature}`;
+    return rows[0]?.data ?? null;
+  }
+
+  for (const intent of paymentIntents.values()) {
+    if (intent.signature === signature) return intent;
+  }
+  return null;
+}
+
+export async function savePaymentIntent(intent: PaymentIntent): Promise<PaymentIntent> {
+  requireProductionPersistence();
+  intent.updatedAt = Date.now();
+
+  if (pgConfigured()) {
+    await ensureSchema();
+    const data = JSON.stringify(intent);
+    await sql`
+      INSERT INTO payment_intents (id, wallet, signature, data, expires_at, updated_at)
+      VALUES (${intent.id}, ${intent.wallet}, ${intent.signature}, ${data}::jsonb, TO_TIMESTAMP(${intent.expiresAt / 1000}), NOW())
+      ON CONFLICT (id) DO UPDATE
+      SET signature = ${intent.signature}, data = ${data}::jsonb, expires_at = TO_TIMESTAMP(${intent.expiresAt / 1000}), updated_at = NOW()
+    `;
+    return intent;
+  }
+
+  if (kvConfigured()) {
+    const ttl = Math.max(60, Math.ceil((intent.expiresAt - Date.now()) / 1000) + 3600);
+    await kvCommand(["SET", paymentIntentKey(intent.id), JSON.stringify(intent), "EX", String(ttl)]);
+  } else {
+    paymentIntents.set(intent.id, intent);
+  }
+  return intent;
+}
+
 // ─── Race Events ──────────────────────────────────────────────────────────────
 export async function getRaceEvent(windowId: number): Promise<RaceEventRecord | null> {
+  requireProductionPersistence();
   if (pgConfigured()) {
     await ensureSchema();
     const { rows } = await sql`SELECT data FROM race_events WHERE window_id = ${windowId}`;
@@ -330,6 +408,7 @@ export async function getRaceEvent(windowId: number): Promise<RaceEventRecord | 
 }
 
 export async function saveRaceEvent(event: RaceEventRecord): Promise<void> {
+  requireProductionPersistence();
   if (pgConfigured()) {
     await ensureSchema();
     const data = JSON.stringify(event);

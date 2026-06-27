@@ -1,5 +1,5 @@
-import { Connection, PublicKey } from "@solana/web3.js";
 import { localDevGateUnlocked, toadJumpConfig } from "./config";
+import { normalizePublicKey, rpcCall } from "./solana-lite";
 
 export interface TokenGateResult {
   wallet: string;
@@ -13,8 +13,21 @@ export interface TokenGateResult {
   devMode: boolean;
 }
 
-export function parseWallet(wallet: string): PublicKey {
-  return new PublicKey(wallet);
+interface ParsedTokenAccounts {
+  value: Array<{
+    account: {
+      data: {
+        parsed?: {
+          info?: {
+            tokenAmount?: {
+              amount?: string;
+              decimals?: number;
+            };
+          };
+        };
+      };
+    };
+  }>;
 }
 
 export async function checkToadJumpGate(wallet: string): Promise<TokenGateResult> {
@@ -36,12 +49,12 @@ export async function checkToadJumpGate(wallet: string): Promise<TokenGateResult
   }
 
   if (!walletLabel) throw new Error("wallet is required");
-  const pubkey = parseWallet(walletLabel);
+  const normalizedWallet = normalizePublicKey(walletLabel);
 
   if (!toadJumpConfig.isProduction && toadJumpConfig.mockTokenBalance !== undefined) {
     const balance = Number(toadJumpConfig.mockTokenBalance);
     return {
-      wallet: pubkey.toBase58(),
+      wallet: normalizedWallet,
       balance,
       rawBalance: Math.floor(balance * 1_000_000),
       decimals: 6,
@@ -55,7 +68,7 @@ export async function checkToadJumpGate(wallet: string): Promise<TokenGateResult
 
   if (!toadJumpConfig.tokenMint) {
     return {
-      wallet: pubkey.toBase58(),
+      wallet: normalizedWallet,
       balance: 0,
       rawBalance: 0,
       decimals: 6,
@@ -67,16 +80,22 @@ export async function checkToadJumpGate(wallet: string): Promise<TokenGateResult
     };
   }
 
+  if (!toadJumpConfig.rpcUrl) {
+    throw new Error("Token gate RPC error: RPC_URL is not configured");
+  }
+
   let rawBalance = 0;
   let decimals = 6;
   try {
-    const connection = new Connection(toadJumpConfig.rpcUrl, "confirmed");
-    const mint = new PublicKey(toadJumpConfig.tokenMint);
-    const accounts = await connection.getParsedTokenAccountsByOwner(pubkey, { mint });
+    const accounts = await rpcCall<ParsedTokenAccounts>(toadJumpConfig.rpcUrl, "getTokenAccountsByOwner", [
+      normalizedWallet,
+      { mint: normalizePublicKey(toadJumpConfig.tokenMint) },
+      { encoding: "jsonParsed", commitment: "confirmed" },
+    ]);
     for (const { account } of accounts.value) {
-      const info = account.data.parsed.info;
-      rawBalance += Number(info.tokenAmount.amount);
-      decimals = info.tokenAmount.decimals;
+      const tokenAmount = account.data.parsed?.info?.tokenAmount;
+      rawBalance += Number(tokenAmount?.amount ?? 0);
+      decimals = tokenAmount?.decimals ?? decimals;
     }
   } catch (err) {
     throw new Error(`Token gate RPC error: ${err instanceof Error ? err.message : "unknown"}`);
@@ -84,7 +103,7 @@ export async function checkToadJumpGate(wallet: string): Promise<TokenGateResult
 
   const balance = rawBalance / Math.pow(10, decimals);
   return {
-    wallet: pubkey.toBase58(),
+    wallet: normalizedWallet,
     balance,
     rawBalance,
     decimals,

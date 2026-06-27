@@ -35,6 +35,8 @@ export interface GameActionInput {
   amount?: number;
   creatorKey?: string;
   nickname?: string;
+  verifiedPayment?: boolean;
+  paymentSignature?: string;
 }
 
 export class GameActionError extends Error {
@@ -103,6 +105,7 @@ export async function handleGameAction(
       if (!Number.isFinite(amount) || amount <= 0) throw new GameActionError("amount must be a positive number");
       const ledger = await getLedger();
       ledger.creatorRewardsRecorded += amount;
+      ledger.tokenRewardsFunded = (ledger.tokenRewardsFunded ?? 0) + amount;
       ledger.dailyActivePool += amount;
       ledger.holderRewardsPool += amount;
       ledger.totalReturnedToProject += amount;
@@ -127,11 +130,16 @@ export async function handleGameAction(
     }
 
     case "claim_flies_skip": {
-      if ((state.tokenBalance ?? 0) < 1_000) throw new GameActionError("Need 1,000 tokens to skip cooldown");
-      state.tokenBalance = (state.tokenBalance ?? 0) - 1_000;
-      state.flies += 5;
+      if (!input.verifiedPayment) {
+        throw new GameActionError("Use the wallet payment flow to skip the claim timer", 403);
+      }
       state.lastFlyClaimAt = Date.now();
-      return { fliesAwarded: 5 };
+      state.flies += 5;
+      return {
+        fliesAwarded: 5,
+        skipCost: 1_000,
+        txSignature: input.paymentSignature ?? null,
+      };
     }
 
     case "select_toad": {

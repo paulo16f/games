@@ -45,8 +45,8 @@ body::after {
 /* --- Pixel font utility --- */
 .pixel {
   font-family: 'Press Start 2P', monospace;
-  line-height: 1.7;
-  letter-spacing: 0.04em;
+  line-height: 1.55;
+  letter-spacing: 0.02em;
   font-size: 13px;
 }
 
@@ -60,11 +60,25 @@ body::after {
 .game-panel {
   border: 2px solid var(--gold-dim);
   border-radius: 14px;
-  background: rgba(14, 2, 30, 0.90);
+  background: rgba(8, 1, 18, 0.96);
   box-shadow:
     0 0 0 1px rgba(255, 215, 0, 0.06) inset,
     0 4px 32px rgba(0, 0, 0, 0.48),
     0 0 24px rgba(147, 51, 234, 0.12);
+}
+
+.easy-copy {
+  color: rgba(255, 251, 220, 0.92);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.75;
+}
+
+.easy-muted {
+  color: rgba(255, 251, 220, 0.72);
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.7;
 }
 
 /* --- Key-value grid — casino style --- */

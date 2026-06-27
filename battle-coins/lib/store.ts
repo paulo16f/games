@@ -28,6 +28,8 @@ export interface ProjectRewardsLedger {
   totalReturnedToProject: number;
   externalAmount: number;
   creatorRewardsRecorded: number;
+  creatorRewardsSolRecorded: number;
+  tokenRewardsFunded: number;
   dailyActivePool: number;
   seasonLeaderboardPool: number;
   reservePool: number;
@@ -64,6 +66,7 @@ export interface TokenRewardLedger {
   dailyPoolRemaining: number;
   dailyClaimCount: number;
   dailyClaimDay: string;
+  dailyTokenRewardsPaid: number;
   totalTokenRewardsPaid: number;
   failedPayouts: number;
 }
@@ -80,6 +83,25 @@ export interface TokenRewardClaim {
   holderBonus: number;
   txSignature: string | null;
   error: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PaymentIntent {
+  id: string;
+  wallet: string;
+  purpose: "claim_flies_skip";
+  status: "pending" | "confirmed" | "expired";
+  mint: string;
+  sourceTokenAccount: string;
+  destinationTokenAccount: string;
+  amountUi: number;
+  amountRaw: string;
+  decimals: number;
+  transactionBase64: string;
+  blockhash: string;
+  signature: string | null;
+  expiresAt: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -165,6 +187,8 @@ declare global {
   var __toadJumpRewardLedger: TokenRewardLedger | undefined;
   // eslint-disable-next-line no-var
   var __toadJumpRewardClaims: Map<string, TokenRewardClaim> | undefined;
+  // eslint-disable-next-line no-var
+  var __toadJumpPaymentIntents: Map<string, PaymentIntent> | undefined;
 }
 
 if (!global.__toadJumpStore) {
@@ -180,6 +204,8 @@ if (!global.__toadJumpLedger) {
     totalReturnedToProject: 0,
     externalAmount: 0,
     creatorRewardsRecorded: 0,
+    creatorRewardsSolRecorded: 0,
+    tokenRewardsFunded: 0,
     dailyActivePool: 0,
     seasonLeaderboardPool: 0,
     reservePool: 0,
@@ -203,6 +229,7 @@ if (!global.__toadJumpRewardLedger) {
     dailyPoolRemaining: 100_000,
     dailyClaimCount: 0,
     dailyClaimDay: new Date().toISOString().slice(0, 10),
+    dailyTokenRewardsPaid: 0,
     totalTokenRewardsPaid: 0,
     failedPayouts: 0,
   };
@@ -212,10 +239,15 @@ if (!global.__toadJumpRewardClaims) {
   global.__toadJumpRewardClaims = new Map<string, TokenRewardClaim>();
 }
 
+if (!global.__toadJumpPaymentIntents) {
+  global.__toadJumpPaymentIntents = new Map<string, PaymentIntent>();
+}
+
 export const store = global.__toadJumpStore;
 export const projectLedger = global.__toadJumpLedger;
 export const tokenRewardLedger = global.__toadJumpRewardLedger;
 export const rewardClaims = global.__toadJumpRewardClaims;
+export const paymentIntents = global.__toadJumpPaymentIntents;
 
 export function makeToad(kind: ToadKind): Toad {
   const template = TOAD_TEMPLATES[kind];
@@ -444,6 +476,7 @@ export function recordCreatorRewards(amount: number): ProjectRewardsLedger {
   const safeAmount = Math.max(0, amount);
   projectLedger.dailyActivePool += safeAmount;
   projectLedger.holderRewardsPool += safeAmount;
+  projectLedger.tokenRewardsFunded += safeAmount;
   projectLedger.creatorRewardsRecorded += safeAmount;
   projectLedger.totalReturnedToProject += safeAmount;
   return projectLedger;

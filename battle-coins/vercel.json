@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/creator-rewards",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/settle-races",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

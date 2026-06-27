@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
   const target = body.target === "race" ? "race" : "daily";
   const ledger = await getLedger();
   ledger.creatorRewardsRecorded += amount;
+  ledger.tokenRewardsFunded = (ledger.tokenRewardsFunded ?? 0) + amount;
   ledger.totalReturnedToProject += amount;
   if (target === "race") {
     ledger.racePool = (ledger.racePool ?? 0) + amount;

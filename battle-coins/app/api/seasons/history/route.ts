@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 import { listPlayers } from "@/lib/repository";
 import { currentWeekId } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const wallet = req.nextUrl.searchParams.get("wallet")?.trim();
+  const session = verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value);
   const players = (await listPlayers()).filter((player) => player.initialized);
   const current = currentWeekId();
   const seasons = new Map<string, {
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
     topPlayers: season.topPlayers.sort((a, b) => b.score - a.score).slice(0, 10),
   })).sort((a, b) => b.seasonId.localeCompare(a.seasonId));
 
-  const player = wallet ? players.find((entry) => entry.wallet === wallet) : null;
+  const player = session ? players.find((entry) => entry.wallet === session.wallet) : null;
   return NextResponse.json({
     currentSeasonId: current,
     history,

@@ -6,24 +6,20 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "smoke:backend": "node scripts/backend-smoke.mjs",
-    "setup:devnet": "node scripts/setup-devnet-token.mjs",
-    "send:tokens": "node scripts/send-test-tokens.mjs"
+    "smoke:backend": "node scripts/backend-smoke.mjs"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.29.0",
-    "@solana/spl-token": "^0.4.14",
-    "@solana/wallet-adapter-base": "^0.9.27",
-    "@solana/wallet-adapter-phantom": "^0.9.29",
-    "@solana/wallet-adapter-react": "^0.15.39",
-    "@solana/wallet-adapter-react-ui": "^0.9.39",
-    "@solana/wallet-adapter-wallets": "^0.19.38",
-    "@solana/web3.js": "^1.98.4",
     "@vercel/postgres": "^0.10.0",
+    "bs58": "^6.0.0",
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
+    "postcss": "^8.5.15",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "tweetnacl": "^1.0.3"
+  },
+  "overrides": {
+    "postcss": "^8.5.15"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
