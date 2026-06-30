@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Toad Jump
 
-## Getting Started
+Production-focused Next.js/Solana game base for a Pump.fun token-gated launch.
 
-First, run the development server:
+## Launch Status
+
+The app is designed to fail closed in production. Do not share a public launch link until:
+
+- `/api/health` returns `ok: true` on the deployed domain.
+- `npm.cmd run smoke:deployed` passes against the deployed domain.
+- A real Phantom or Solflare mainnet canary proves the 1,000-token skip flow.
+- `REWARDS_PAYOUTS_ENABLED=false` remains set unless a clean SPL payout signer has been added and audited.
+
+## Required Production Environment
+
+Copy the names from `.env.production.example` into Vercel Production. At minimum:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+POSTGRES_URL
+SESSION_SECRET
+RPC_URL
+TOAD_JUMP_TOKEN_MINT
+TOAD_JUMP_TOKEN_SYMBOL
+TOAD_JUMP_TOKEN_DECIMALS
+TOAD_JUMP_GATE_AMOUNT
+NEXT_PUBLIC_TOAD_JUMP_BUY_URL
+TREASURY_WALLET
+TREASURY_PRIVATE_KEY
+CRON_SECRET
+CREATOR_DASHBOARD_KEY
+REWARDS_PAYOUTS_ENABLED=false
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Generate a session secret locally:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm.cmd run secret:session
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Then add it to Vercel:
 
-## Learn More
+```bash
+vercel env add SESSION_SECRET production
+```
 
-To learn more about Next.js, take a look at the following resources:
+Use unique values for `SESSION_SECRET`, `CRON_SECRET`, and `CREATOR_DASHBOARD_KEY`. Never expose them through `NEXT_PUBLIC_*` variables.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Local Verification
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Run the full local readiness report before every production deploy:
 
-## Deploy on Vercel
+```bash
+npm.cmd run readiness:local
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The report exits nonzero when code gates pass but the current shell does not have production env configured. That is expected if you keep real secrets only in Vercel; the summary will say whether the code gates passed.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The underlying gates are:
+
+```bash
+npm.cmd run preflight:production
+npm.cmd run build
+npm.cmd audit
+npm.cmd run smoke:copy
+npm.cmd run smoke:local
+npm.cmd run smoke:prod-fail-closed:server
+```
+
+Expected audit result:
+
+```bash
+found 0 vulnerabilities
+```
+
+## Deploy And Smoke
+
+Vercel Hobby only supports daily cron jobs, so `vercel.json` keeps only the daily creator sync. Race settlement also runs opportunistically from Home/Races traffic.
+
+```bash
+vercel --prod .
+```
+
+After deployment:
+
+```bash
+$env:DEPLOYED_BASE_URL="https://YOUR_DOMAIN"
+npm.cmd run health:deployed
+npm.cmd run smoke:deployed
+```
+
+Also open:
+
+```bash
+https://YOUR_DOMAIN/api/health
+```
+
+Production is not ready while health is red. Run `npm.cmd run health:deployed` for the exact failed checks and next fixes. Common missing checks are `SESSION_SECRET`, `POSTGRES_URL`, `rpcLive`, `mintAccount`, `mintTokenProgram`, or `treasuryTokenAccount`.
+
+## Pump.fun Launch Notes
+
+Use this app around an existing Pump.fun mint. Create the token and metadata outside this app, then wire the final mint and buy URL into Vercel.
+
+See:
+
+- `docs/PRODUCTION_LAUNCH_REVIEW.md`
+- `docs/PUMPFUN_LAUNCH_CHECKLIST.md`
+
+The app records creator SOL separately from token reward units. Token reward pools must be funded explicitly in token units.

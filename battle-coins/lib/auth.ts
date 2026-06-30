@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import nacl from "tweetnacl";
 import { toadJumpConfig, ProductionReadinessError } from "./config";
-import { ensureSchema, pgConfigured, sql } from "./db";
+import { ensureSchema, pgConfigured, requirePostgres, sql } from "./db";
 import { normalizePublicKey, publicKeyBytes } from "./solana-lite";
 
 export const SESSION_COOKIE = "toad_session";
@@ -63,6 +63,7 @@ export async function createAuthNonce(wallet: string): Promise<{ nonce: string; 
   const expiresAt = Date.now() + NONCE_TTL_MS;
   const message = createSiwsMessage(normalizedWallet, nonce);
 
+  requirePostgres();
   if (pgConfigured()) {
     await ensureSchema();
     await sql`
@@ -80,6 +81,7 @@ export async function consumeAuthNonce(nonce: string, wallet: string, message: s
   const normalizedWallet = normalizePublicKey(wallet);
   const now = Date.now();
 
+  requirePostgres();
   if (pgConfigured()) {
     await ensureSchema();
     const { rows } = await sql`

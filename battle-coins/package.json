@@ -6,7 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "smoke:backend": "node scripts/backend-smoke.mjs"
+    "preflight:production": "node scripts/production-preflight.mjs",
+    "secret:session": "node scripts/generate-session-secret.mjs",
+    "health:deployed": "node scripts/diagnose-health.mjs",
+    "readiness:local": "node scripts/local-readiness-report.mjs",
+    "smoke:copy": "node scripts/copy-risk-smoke.mjs",
+    "smoke:backend": "node scripts/backend-smoke.mjs",
+    "smoke:creator-auth": "node scripts/creator-auth-smoke.mjs",
+    "smoke:gate-locked": "node scripts/gate-locked-smoke.mjs",
+    "smoke:prod-fail-closed": "node scripts/prod-fail-closed-smoke.mjs",
+    "smoke:deployed": "node scripts/deployed-smoke.mjs",
+    "smoke:local": "node scripts/run-local-smokes.mjs",
+    "smoke:prod-fail-closed:server": "node scripts/run-prod-fail-closed-smoke.mjs"
   },
   "dependencies": {
     "@vercel/postgres": "^0.10.0",

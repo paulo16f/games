@@ -165,7 +165,10 @@ const leaderboard = await request("/api/leaderboard");
 assert(Array.isArray(leaderboard), "leaderboard should return an array");
 
 const season = await request("/api/season");
-assert(season.projectLedger.externalAmount === 0, "project ledger should not route rewards externally");
+assert(season.projectLedger.dailyActivePool !== undefined, "public season should expose daily active pool");
+assert(season.projectLedger.racePool !== undefined, "public season should expose race pool");
+assert(!("externalAmount" in season.projectLedger), "public season must not expose private ledger accounting");
+assert(!("creatorRewardsRecorded" in season.projectLedger), "public season must not expose creator accounting");
 assert(season.currentWeekId, "season should expose the current week id");
 
 let weeklyBlocked = false;

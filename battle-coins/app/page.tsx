@@ -47,7 +47,7 @@ interface SeasonStats {
   dailyJumpScore?: number;
   seasonJumpScore?: number;
   totalFlies: number;
-  projectLedger: ProjectRewardsLedger;
+  projectLedger: Pick<ProjectRewardsLedger, "dailyActivePool" | "racePool">;
   rewardLedger?: {
     dailyPoolRemaining: number;
     dailyClaimCount: number;
@@ -74,6 +74,7 @@ interface BrowserWalletProvider {
   signMessage?: (message: Uint8Array, encoding?: string) => Promise<Uint8Array | { signature: Uint8Array }>;
   signTransaction?: (transaction: BrowserLegacyTransaction) => Promise<BrowserLegacyTransaction | Uint8Array>;
   signAndSendTransaction?: (transaction: BrowserLegacyTransaction) => Promise<string | { signature?: string | Uint8Array }>;
+  request?: (args: { method: string; params?: Record<string, unknown> }) => Promise<unknown>;
 }
 
 declare global {
@@ -159,10 +160,14 @@ class BrowserLegacyTransaction {
   }
 }
 
-function transactionSignature(value: string | { signature?: string | Uint8Array }): string {
+function transactionSignature(value: unknown): string {
+  if (value instanceof Uint8Array) return base58Encode(value);
   if (typeof value === "string") return value;
-  if (typeof value.signature === "string") return value.signature;
-  if (value.signature instanceof Uint8Array) return base58Encode(value.signature);
+  if (value && typeof value === "object" && "signature" in value) {
+    const signature = (value as { signature?: unknown }).signature;
+    if (typeof signature === "string") return signature;
+    if (signature instanceof Uint8Array) return base58Encode(signature);
+  }
   throw new Error("Wallet did not return a transaction signature");
 }
 
@@ -642,7 +647,7 @@ function EntryScreen({
           />
         </div>
         <h1 className="pixel text-2xl text-yellow-300 sm:text-3xl">Toad Jump</h1>
-        <p className="pixel text-sm text-white/80">Hatch toads. Keep them jumping. Earn real tokens.</p>
+        <p className="pixel text-sm text-white/80">Hatch toads. Keep them jumping. Build your score.</p>
       </div>
 
       {/* Middle — connect card */}
@@ -712,8 +717,8 @@ function EntryScreen({
                 { step: "①", icon: "🥚", title: "Hatch a Toad", desc: "Spend 5 flies → crack an egg → get a random toad!", sub: "5 rarity tiers: Common → Legendary" },
                 { step: "②", icon: "⚡", title: "Activate it", desc: "Tap your toad → it jumps automatically!", sub: "Rarer toad = more points per hour" },
                 { step: "③", icon: "🪰", title: "Collect flies", desc: "Claim +5 free flies every 30 minutes", sub: "Need 10,000 tokens to unlock claims" },
-                { step: "④", icon: "💰", title: "Earn real tokens", desc: "Jump score = share of the daily pool", sub: "Claim straight to your Solana wallet" },
-                { step: "⑤", icon: "🏎", title: "Race!", desc: "Enter 30-min races vs other players", sub: "Win tokens or flies as prizes" },
+                { step: "④", icon: "💰", title: "Build rewards", desc: "Jump score sets your share of the daily pool", sub: "Wallet players can claim when eligible" },
+                { step: "⑤", icon: "🏎", title: "Race!", desc: "Enter 30-min races vs other players", sub: "Compete for pool rewards or flies" },
               ].map(item => (
                 <div key={item.step} className="flex items-start gap-3 rounded-lg border border-white/12 bg-black/25 backdrop-blur-sm px-3 py-3">
                   <div className="pixel text-base text-yellow-300/70 shrink-0 mt-0.5">{item.step}</div>
@@ -1255,15 +1260,15 @@ function PlayTab({
       {/* ══ 6. UNLOCK BANNER ════════════════════════════════ */}
       {gated && gate?.configured !== false && (
         <div className="rounded-2xl border border-amber-400/30 bg-amber-400/8 px-5 py-5 space-y-4">
-          <div className="pixel text-base font-black text-amber-300">🔒 Earning is Locked</div>
+          <div className="pixel text-base font-black text-amber-300">🔒 Wallet Rewards Locked</div>
           <div className="pixel text-sm text-white/55">
             Buy {shortNumber(gateAmount)} {symbol} on Pump.fun to unlock:
           </div>
           <div className="space-y-2">
             {[
-              "Collect free flies every 30 minutes",
-              "Earn tokens from your jump score",
-              "Enter races for token prizes",
+              "Unlock free flies every 30 minutes",
+              "Qualify for score-based rewards",
+              "Enter races with reward pools",
             ].map(item => (
               <div key={item} className="flex items-center gap-2.5">
                 <span className="text-emerald-400 text-sm shrink-0">✓</span>
@@ -2012,9 +2017,9 @@ function LeaderboardTab({ leaderboard, season }: { leaderboard: LeaderboardEntry
 
 function SeasonsTab({ currentSeasonId }: { currentSeasonId: string }) {
   const features = [
-    { icon: "🥇", title: "Weekly Prizes",   desc: "Top jumpers split token rewards every Sunday — proportional to season score." },
-    { icon: "🔥", title: "Burn Events",     desc: "Creator fees burned permanently. Fewer tokens in supply — holders benefit." },
-    { icon: "🏪", title: "Frog Market",     desc: "Trade rare frogs with other players for SOL or $TOAD." },
+    { icon: "🥇", title: "Weekly Rewards",  desc: "Top jumpers share seasonal reward pools by score." },
+    { icon: "🔥", title: "Burn Tracking",   desc: "Token spend accounting stays visible without promising returns." },
+    { icon: "🏪", title: "Frog Market",     desc: "Future player-to-player frog trading after review." },
     { icon: "🎬", title: "Live Races",      desc: "Real-time animated races — watch your frog sprint against rivals." },
     { icon: "🔐", title: "Wallet Sign-in",  desc: "One-click login with Phantom or Solflare. No more copy-paste." },
     { icon: "🏆", title: "Season Archives", desc: "Every rank, prize, and personal record preserved forever." },
@@ -2072,9 +2077,22 @@ function SeasonsTab({ currentSeasonId }: { currentSeasonId: string }) {
   );
 }
 
-function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: CreatorDashboard | null; busy: boolean; recordCreatorRewards: (amount: number, key: string) => void }) {
+function CreatorTab({
+  dashboard,
+  busy,
+  recordCreatorRewards,
+  loadCreatorDashboard,
+}: {
+  dashboard: CreatorDashboard | null;
+  busy: boolean;
+  recordCreatorRewards: (amount: number, key: string) => Promise<boolean>;
+  loadCreatorDashboard: (key: string) => Promise<boolean>;
+}) {
   const [amount, setAmount] = useState("");
   const [key, setKey] = useState("");
+  const [dashboardKey, setDashboardKey] = useState("");
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState("");
   const [raceAmount, setRaceAmount] = useState("");
   const [raceKey, setRaceKey] = useState("");
   const [showRaceForm, setShowRaceForm] = useState(false);
@@ -2089,10 +2107,46 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
     : syncAge < 3_600_000 ? `${Math.floor(syncAge / 60_000)}m ago`
     : `${Math.floor(syncAge / 3_600_000)}h ago`;
 
+  async function handleLoadDashboard() {
+    setDashboardLoading(true);
+    setDashboardError("");
+    const ok = await loadCreatorDashboard(dashboardKey);
+    if (ok) {
+      setDashboardKey("");
+    } else {
+      setDashboardError("Creator key was rejected.");
+      setDashboardKey("");
+    }
+    setDashboardLoading(false);
+  }
+
   return (
     <section className="space-y-3">
 
       {/* Treasury stats — FIRST */}
+      {!dashboard && (
+        <div className="game-panel p-4 space-y-3">
+          <div className="text-center">
+            <div className="pixel text-base text-yellow-300">Creator Dashboard</div>
+            <p className="easy-muted mt-2">Enter the creator key to load private treasury stats.</p>
+          </div>
+          <input
+            value={dashboardKey}
+            onChange={(event) => setDashboardKey(event.target.value)}
+            placeholder="Creator dashboard key"
+            type="password"
+            className="pixel text-sm w-full rounded-lg border border-white/10 bg-white/6 px-3 py-2.5 text-white outline-none placeholder:text-white/28 focus:border-yellow-400/50 transition-colors"
+          />
+          <button
+            onClick={handleLoadDashboard}
+            disabled={busy || dashboardLoading || !dashboardKey}
+            className="pixel text-sm w-full rounded-lg bg-yellow-400 px-4 py-2.5 font-black text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none disabled:opacity-40"
+          >
+            {dashboardLoading ? "Loading..." : "Load Dashboard"}
+          </button>
+          {dashboardError && <div className="text-center text-sm font-bold text-red-200">{dashboardError}</div>}
+        </div>
+      )}
       <div className="game-panel p-4 space-y-3">
         <div className="pixel text-base text-white/55 uppercase tracking-widest text-center mb-3">Treasury stats</div>
         <div className="grid grid-cols-2 gap-2">
@@ -2112,7 +2166,7 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
         </div>
         <div className="rounded-xl border border-yellow-400/18 bg-yellow-400/5 p-3 text-center">
           <p className="pixel text-sm text-white/50 leading-loose">
-            100% of Pump.fun creator fees go to the daily active pool, split proportionally by jump score.
+            SOL creator fees are tracked separately. Add token-denominated funds manually before token rewards are distributed.
           </p>
         </div>
       </div>
@@ -2126,7 +2180,7 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
             <span className="pixel text-base text-yellow-300">{syncAgeText}</span>
           </div>
           <p className="pixel text-sm text-white/55 leading-loose mt-3">
-            Auto-sync runs every 15 min via cron-job.org, fetches SOL transfers to the treasury wallet, and credits 100% to the reward pool — no manual steps required.
+            Auto-sync runs daily on Vercel Hobby and records SOL transfers to the treasury wallet without treating them as token rewards. Race settlement also runs when players open Home or Races.
           </p>
         </div>
 
@@ -2135,7 +2189,7 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
           {[
             { label: "Total syncs",    value: String(ledger?.autoSyncCount ?? 0) },
             { label: "Jumpers today",  value: String(dashboard?.activeJumpersToday ?? 0) },
-            { label: "Total recorded", value: shortNumber(ledger?.creatorRewardsRecorded ?? 0) },
+            { label: "Token funded", value: shortNumber(ledger?.creatorRewardsRecorded ?? 0) },
             { label: "Last sync",      value: syncAgeText },
           ].map(stat => (
             <div key={stat.label} className="rounded-xl border border-white/8 bg-white/4 p-3 flex flex-col items-center gap-2 text-center">
@@ -2160,9 +2214,13 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
         </button>
         {showManual && (
           <div className="space-y-2">
-            <input value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Amount received (SOL)" className="pixel text-sm w-full rounded-lg border border-white/10 bg-white/6 px-3 py-2.5 text-white outline-none placeholder:text-white/28 focus:border-yellow-400/50 transition-colors" />
+            <input value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Token amount to fund" className="pixel text-sm w-full rounded-lg border border-white/10 bg-white/6 px-3 py-2.5 text-white outline-none placeholder:text-white/28 focus:border-yellow-400/50 transition-colors" />
             <input value={key} onChange={(event) => setKey(event.target.value)} placeholder="Creator dashboard key" type="password" className="pixel text-sm w-full rounded-lg border border-white/10 bg-white/6 px-3 py-2.5 text-white outline-none placeholder:text-white/28 focus:border-yellow-400/50 transition-colors" />
-            <button onClick={() => recordCreatorRewards(Number(amount), key)} disabled={busy || !Number(amount)} className="pixel text-sm w-full rounded-lg bg-yellow-400 px-4 py-2.5 font-black text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none disabled:opacity-40">
+            <button onClick={async () => {
+              const ok = await recordCreatorRewards(Number(amount), key);
+              setKey("");
+              if (ok) setAmount("");
+            }} disabled={busy || !Number(amount)} className="pixel text-sm w-full rounded-lg bg-yellow-400 px-4 py-2.5 font-black text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none disabled:opacity-40">
               Record manually
             </button>
           </div>
@@ -2194,7 +2252,8 @@ function CreatorTab({ dashboard, busy, recordCreatorRewards }: { dashboard: Crea
             <button
               onClick={async () => {
                 const res = await fetch("/api/creator/rewards", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount: Number(raceAmount), key: raceKey, target: "race" }) });
-                if (res.ok) { setRaceAmount(""); setRaceKey(""); setShowRaceForm(false); }
+                setRaceKey("");
+                if (res.ok) { setRaceAmount(""); setShowRaceForm(false); }
               }}
               disabled={busy || !Number(raceAmount)}
               className="pixel text-sm w-full rounded-lg bg-yellow-400 px-4 py-2.5 font-black text-black shadow-[0_3px_0_rgba(0,0,0,0.4)] hover:bg-yellow-300 active:translate-y-[2px] active:shadow-none disabled:opacity-40"
@@ -2260,6 +2319,7 @@ function GameShell({
   openEgg,
   feedToad,
   recordCreatorRewards,
+  loadCreatorDashboard,
   enterRaceEventWithToad,
   eggResult,
   onClearEgg,
@@ -2285,7 +2345,8 @@ function GameShell({
   deactivateToad: (id: string) => void;
   openEgg: () => void;
   feedToad: (id: string) => void;
-  recordCreatorRewards: (amount: number, key: string) => void;
+  recordCreatorRewards: (amount: number, key: string) => Promise<boolean>;
+  loadCreatorDashboard: (key: string) => Promise<boolean>;
   enterRaceEventWithToad: (toadId: string) => void;
   eggResult: EggReveal | null;
   onClearEgg: () => void;
@@ -2352,7 +2413,14 @@ function GameShell({
             )}
             {activeTab === "leaderboard" && <LeaderboardTab leaderboard={leaderboard} season={season} />}
             {activeTab === "seasons" && <SeasonsTab currentSeasonId={player.currentWeekId} />}
-            {activeTab === "creator" && <CreatorTab dashboard={creatorDashboard} busy={busy} recordCreatorRewards={recordCreatorRewards} />}
+            {activeTab === "creator" && (
+              <CreatorTab
+                dashboard={creatorDashboard}
+                busy={busy}
+                recordCreatorRewards={recordCreatorRewards}
+                loadCreatorDashboard={loadCreatorDashboard}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -2436,7 +2504,6 @@ const setTab = useCallback((tab: GameTab) => {
       .then((data) => {
         if (data.leaderboard) setLeaderboard(data.leaderboard);
         if (data.season) setSeason(data.season);
-        if (data.creatorDashboard) setCreatorDashboard(data.creatorDashboard);
       })
       .catch(() => {});
   }, []);
@@ -2712,7 +2779,7 @@ const setTab = useCallback((tab: GameTab) => {
       return;
     }
     const provider = connectedProvider ?? walletProvider("phantom") ?? walletProvider("solflare");
-    if (!provider?.signAndSendTransaction && !provider?.signTransaction) {
+    if (!provider?.request && !provider?.signAndSendTransaction && !provider?.signTransaction) {
       setMessage("Connect Phantom or Solflare again to pay the 1,000 token skip.");
       return;
     }
@@ -2736,7 +2803,14 @@ const setTab = useCallback((tab: GameTab) => {
       );
 
       let signature = "";
-      if (provider.signAndSendTransaction) {
+      if (provider.request) {
+        signature = transactionSignature(await provider.request({
+          method: "signAndSendTransaction",
+          params: {
+            message: base58Encode(transaction.serializeMessage()),
+          },
+        }));
+      } else if (provider.signAndSendTransaction) {
         signature = transactionSignature(await provider.signAndSendTransaction(transaction));
       } else if (provider.signTransaction) {
         const signed = await provider.signTransaction(transaction);
@@ -2847,7 +2921,7 @@ const setTab = useCallback((tab: GameTab) => {
   async function recordCreatorRewards(amount: number, key: string) {
     if (!Number.isFinite(amount) || amount <= 0) {
       setMessage("Enter a positive creator rewards amount.");
-      return;
+      return false;
     }
     setBusy(true);
     setBusyAction("record_creator_rewards");
@@ -2863,8 +2937,35 @@ const setTab = useCallback((tab: GameTab) => {
       setCreatorDashboard((current) => current ? { ...current, ledger: data.ledger } : current);
       fetchMeta();
       setMessage(`Creator rewards recorded: ${shortNumber(amount)} ${tokenSymbol}.`);
+      return true;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to record creator rewards.");
+      return false;
+    } finally {
+      setBusy(false);
+      setBusyAction("");
+    }
+  }
+
+  async function loadCreatorDashboard(key: string): Promise<boolean> {
+    if (!key.trim()) {
+      setMessage("Enter the creator dashboard key.");
+      return false;
+    }
+    setBusy(true);
+    setBusyAction("creator_dashboard");
+    setMessage("");
+    try {
+      const res = await fetch("/api/creator/dashboard", {
+        headers: { "x-creator-key": key },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Unable to load creator dashboard");
+      setCreatorDashboard(data);
+      return true;
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to load creator dashboard.");
+      return false;
     } finally {
       setBusy(false);
       setBusyAction("");
@@ -2905,6 +3006,7 @@ const setTab = useCallback((tab: GameTab) => {
       openEgg={openEgg}
       feedToad={feedToad}
       recordCreatorRewards={recordCreatorRewards}
+      loadCreatorDashboard={loadCreatorDashboard}
       enterRaceEventWithToad={enterRaceEventWithToad}
       eggResult={eggResult}
       onClearEgg={() => setEggResult(null)}

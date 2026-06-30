@@ -1,5 +1,6 @@
 import { ACTION_COSTS } from "./constants";
 import { toadJumpConfig } from "./config";
+import { hasCreatorKey } from "./creator-auth";
 import { openEgg } from "./gacha-engine";
 import { settleAutoJump } from "./idle-engine";
 import { getLedger, getRaceEvent, saveRaceEvent, saveLedger } from "./repository";
@@ -53,6 +54,15 @@ function ensureInitialized(state: PlayerState, gate: TokenGateResult): void {
   initializePlayer(state, gate.balance);
 }
 
+function requireTokenGate(gate: TokenGateResult, feature: string): void {
+  if (!gate.configured) {
+    throw new GameActionError("Token gate is not configured", 503);
+  }
+  if (!gate.gated) {
+    throw new GameActionError(`Hold ${gate.gateAmount.toLocaleString()}+ ${gate.symbol} to ${feature}`, 403);
+  }
+}
+
 async function maybeFinalizeRace(state: PlayerState): Promise<void> {
   if (!state.lastRaceWindowId) return;
   const endsAt = (state.lastRaceWindowId + 1) * 1_800_000;
@@ -100,7 +110,7 @@ export async function handleGameAction(
 
     case "record_creator_rewards": {
       if (!toadJumpConfig.creatorDashboardKey) throw new GameActionError("Creator dashboard key is not configured", 503);
-      if (input.creatorKey !== toadJumpConfig.creatorDashboardKey) throw new GameActionError("Invalid creator dashboard key", 403);
+      if (!hasCreatorKey(input.creatorKey)) throw new GameActionError("Invalid creator dashboard key", 403);
       const amount = Number(input.amount);
       if (!Number.isFinite(amount) || amount <= 0) throw new GameActionError("amount must be a positive number");
       const ledger = await getLedger();
@@ -113,6 +123,7 @@ export async function handleGameAction(
     }
 
     case "claim_24h_reward": {
+      requireTokenGate(gate, "claim rewards");
       try {
         return { reward: await claim24hReward(state, gate) };
       } catch (error) {
@@ -121,6 +132,7 @@ export async function handleGameAction(
     }
 
     case "claim_daily_flies": {
+      requireTokenGate(gate, "claim free flies");
       const COOLDOWN = 30 * 60 * 1000;
       if (state.lastFlyClaimAt && Date.now() - state.lastFlyClaimAt < COOLDOWN)
         throw new GameActionError("Flies on cooldown — wait 30 minutes");
@@ -186,7 +198,7 @@ export async function handleGameAction(
     }
 
     case "enter_race_event": {
-      if (!gate.gated) throw new GameActionError("Tokens required to enter races — buy on Pump.fun");
+      requireTokenGate(gate, "enter races");
       if (state.flies < 2) throw new GameActionError("Need 2 flies to enter the race");
       const activeToad = input.toadId
         ? state.toads.find((t) => t.id === input.toadId)

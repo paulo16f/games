@@ -1,19 +1,24 @@
 import { NextResponse } from "next/server";
+import { apiError } from "@/lib/api";
 import { getLedger, getMetaCache, getRewardLedger, listPlayers, saveMetaCache } from "@/lib/repository";
+import { settleRaceWindows } from "@/lib/race-settlement";
 import { currentWeekId, previousWeekId, publicWallet } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const cached = await getMetaCache();
-  if (cached) return NextResponse.json(cached);
+  try {
+    await settleRaceWindows();
 
-  const players = (await listPlayers()).filter((p) => p.initialized);
-  const ledger = await getLedger();
-  const rewardLedger = await getRewardLedger();
-  const current = currentWeekId();
+    const cached = await getMetaCache();
+    if (cached) return NextResponse.json(cached);
 
-  const leaderboard = players
+    const players = (await listPlayers()).filter((p) => p.initialized);
+    const ledger = await getLedger();
+    const rewardLedger = await getRewardLedger();
+    const current = currentWeekId();
+
+    const leaderboard = players
     .map((state) => {
       const topToad = [...state.toads].sort((a, b) => b.level - a.level)[0] ?? null;
       return {
@@ -34,7 +39,7 @@ export async function GET() {
     .sort((a, b) => b.dailyJumpScore - a.dailyJumpScore)
     .slice(0, 20);
 
-  const season = {
+    const season = {
     activePlayers: players.length,
     totalRaces: players.reduce((sum, p) => sum + p.totalRaces, 0),
     totalJumps: players.reduce((sum, p) => sum + p.lifetimeJumps, 0),
@@ -44,28 +49,22 @@ export async function GET() {
     claimableWeekId: previousWeekId(),
     weeklyScores: players.reduce((sum, p) => sum + (p.weeklyHistory[current]?.score ?? 0), 0),
     totalFlies: players.reduce((sum, p) => sum + p.flies, 0),
-    projectLedger: ledger,
-    rewardLedger,
+    projectLedger: {
+      dailyActivePool: ledger.dailyActivePool,
+      racePool: ledger.racePool,
+    },
+    rewardLedger: {
+      dailyPoolRemaining: rewardLedger.dailyPoolRemaining,
+      dailyClaimCount: rewardLedger.dailyClaimCount,
+      totalTokenRewardsPaid: rewardLedger.totalTokenRewardsPaid,
+      failedPayouts: rewardLedger.failedPayouts,
+    },
   };
 
-  const creatorDashboard = {
-    ledger,
-    rewardLedger,
-    activeJumpersToday: players.filter((p) => p.dailyJumpScore > 0).length,
-    totalDailyJumpScore: players.reduce((sum, p) => sum + p.dailyJumpScore, 0),
-    totalSeasonJumpScore: players.reduce((sum, p) => sum + p.seasonJumpScore, 0),
-    topJumpers: [...players]
-      .sort((a, b) => b.seasonJumpScore - a.seasonJumpScore)
-      .slice(0, 10)
-      .map((p) => ({
-        wallet: publicWallet(p.wallet),
-        dailyJumpScore: p.dailyJumpScore,
-        seasonJumpScore: p.seasonJumpScore,
-        lifetimeJumps: p.lifetimeJumps,
-      })),
-  };
-
-  const snapshot = { leaderboard, season, creatorDashboard };
-  await saveMetaCache(snapshot);
-  return NextResponse.json(snapshot);
+    const snapshot = { leaderboard, season };
+    await saveMetaCache(snapshot);
+    return NextResponse.json(snapshot);
+  } catch (error) {
+    return apiError(error);
+  }
 }

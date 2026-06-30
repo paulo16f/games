@@ -1,5 +1,7 @@
 import bs58 from "bs58";
 
+export const SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
 export function publicKeyBytes(wallet: string): Uint8Array {
   let bytes: Uint8Array;
   try {

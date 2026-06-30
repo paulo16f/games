@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiError } from "@/lib/api";
-import { toadJumpConfig } from "@/lib/config";
+import { creatorKeyConfigured, hasCreatorKey } from "@/lib/creator-auth";
 import { withPostgresAdvisoryLock } from "@/lib/db";
 import { getRewardLedger, saveRewardLedger } from "@/lib/repository";
 import { normalizeRewardLedger, payoutBlockedReason } from "@/lib/reward-engine";
@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as { key?: unknown; wallets?: unknown; amount?: unknown };
 
-    if (!toadJumpConfig.creatorDashboardKey) {
+    if (!creatorKeyConfigured()) {
       return NextResponse.json({ error: "Creator dashboard key is not configured" }, { status: 503 });
     }
-    if (body.key !== toadJumpConfig.creatorDashboardKey) {
+    if (!hasCreatorKey(body.key)) {
       return NextResponse.json({ error: "Invalid creator dashboard key" }, { status: 403 });
     }
 

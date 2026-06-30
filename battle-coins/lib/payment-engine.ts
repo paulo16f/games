@@ -10,14 +10,12 @@ import {
   savePaymentIntent,
   savePlayer,
 } from "./repository";
-import { normalizePublicKey, publicKeyBytes, rpcCall } from "./solana-lite";
+import { normalizePublicKey, publicKeyBytes, rpcCall, SPL_TOKEN_PROGRAM_ID } from "./solana-lite";
 import { PaymentIntent } from "./store";
 import { checkToadJumpGate } from "./token-gate";
 
 export const CLAIM_FLIES_SKIP_COST = 1_000;
 export const CLAIM_FLIES_SKIP_COOLDOWN_MS = 30 * 60 * 1000;
-
-const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 interface ParsedTokenAccounts {
   value: Array<{ pubkey: string }>;
@@ -146,7 +144,7 @@ function buildTransferCheckedTransaction(input: {
     input.sourceTokenAccount,
     input.destinationTokenAccount,
     input.mint,
-    TOKEN_PROGRAM_ID,
+    SPL_TOKEN_PROGRAM_ID,
   ].map(publicKeyBytes);
 
   const data = concatBytes([
@@ -185,6 +183,12 @@ export async function createClaimFliesSkipIntent(wallet: string): Promise<Paymen
   const { rpcUrl, mint, treasuryWallet } = assertPaymentConfig();
   const normalizedWallet = normalizePublicKey(wallet);
   const gate = await checkToadJumpGate(normalizedWallet);
+  if (!gate.configured) {
+    throw new Error("Token gate is not configured");
+  }
+  if (!gate.gated) {
+    throw new Error(`Hold ${gate.gateAmount.toLocaleString()}+ ${gate.symbol} to skip the timer`);
+  }
   if (gate.balance < CLAIM_FLIES_SKIP_COST) {
     throw new Error(`Need ${CLAIM_FLIES_SKIP_COST.toLocaleString()} ${gate.symbol} to skip the timer`);
   }
@@ -248,7 +252,7 @@ async function verifyTokenPayment(intent: PaymentIntent, signature: string): Pro
   const instructions = parsed.transaction.message?.instructions ?? [];
   const expectedAuthority = normalizePublicKey(intent.wallet);
   const transfer = instructions.find((ix) => {
-    if (ix.programId !== TOKEN_PROGRAM_ID) return false;
+    if (ix.programId !== SPL_TOKEN_PROGRAM_ID) return false;
     const info = ix.parsed?.info;
     if (!info?.source || !info.destination || !info.mint || !(info.authority || info.owner)) return false;
     const rawAmount = info.tokenAmount?.amount ?? info.amount;
@@ -306,20 +310,30 @@ export async function confirmClaimFliesSkipIntent(wallet: string, intentId: stri
 
   await verifyTokenPayment(intent, normalizedSignature);
 
-  return withPostgresAdvisoryLock(`wallet:${normalizedWallet}`, async () => {
-    const gate = await checkToadJumpGate(normalizedWallet);
-    const state = await getOrCreatePlayer(normalizedWallet);
-    const result = await handleGameAction(state, gate, {
-      action: "claim_flies_skip",
-      verifiedPayment: true,
-      paymentSignature: normalizedSignature,
+  return withPostgresAdvisoryLock(`payment:${intentId}`, async () => {
+    const lockedIntent = await getPaymentIntent(intentId);
+    if (!lockedIntent) throw new Error("Payment intent not found");
+    if (lockedIntent.wallet !== normalizedWallet) throw new Error("Payment intent belongs to another wallet");
+    if (lockedIntent.status === "confirmed") throw new Error("Payment intent already confirmed");
+    if (lockedIntent.signature && lockedIntent.signature !== normalizedSignature) {
+      throw new Error("Payment intent was confirmed with another signature");
+    }
+
+    return withPostgresAdvisoryLock(`wallet:${normalizedWallet}`, async () => {
+      const gate = await checkToadJumpGate(normalizedWallet);
+      const state = await getOrCreatePlayer(normalizedWallet);
+      const result = await handleGameAction(state, gate, {
+        action: "claim_flies_skip",
+        verifiedPayment: true,
+        paymentSignature: normalizedSignature,
+      });
+      await recordSkipSpendSplit(lockedIntent.amountUi);
+      lockedIntent.status = "confirmed";
+      lockedIntent.signature = normalizedSignature;
+      await savePaymentIntent(lockedIntent);
+      const playerData = await savePlayer(state);
+      return { playerData, result, gate, intent: lockedIntent };
     });
-    await recordSkipSpendSplit(intent.amountUi);
-    intent.status = "confirmed";
-    intent.signature = normalizedSignature;
-    await savePaymentIntent(intent);
-    const playerData = await savePlayer(state);
-    return { playerData, result, gate, intent };
   });
 }
 
